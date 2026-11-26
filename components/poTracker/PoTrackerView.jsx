@@ -37,7 +37,7 @@ import {
 import PoTrackerHelper from "../../helper/poTracker";
 import toast from "react-hot-toast";
 import usePermissions from "../../customHooks/usePermissions";
-import { CHANNELS, FOLLOW_UP_VIEW, ago, channelText, SORTS, STAGES, daysFrom, excelRow, filterOrders, options, sortOrders, splitByStage, totals } from "../../util/poTracker";
+import { STOP_REASONS, stopReasonText, isStopped, CHANNELS, FOLLOW_UP_VIEW, ago, channelText, SORTS, STAGES, daysFrom, excelRow, filterOrders, options, sortOrders, splitByStage, totals } from "../../util/poTracker";
 import { exportToExcel } from "../../util/exportCSVFile";
 
 const qty = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: 3 }));
@@ -154,6 +154,27 @@ function Expected({ o, today }) {
 
 /** The latest follow-up on a PO, or a prompt to add one. */
 function LastFollowup({ o, now }) {
+  if (isStopped(o)) {
+    const st = o.stopped;
+    return (
+      <Box maxW="260px">
+        <Badge colorScheme="gray" fontSize="9px" mb={1}>
+          Follow-up stopped
+        </Badge>
+        <Text fontSize="xs" color="gray.700">
+          {stopReasonText(st.stop_reason)}
+        </Text>
+        {st.remark ? (
+          <Text fontSize="xs" color="gray.600" noOfLines={1} title={st.remark}>
+            {st.remark}
+          </Text>
+        ) : null}
+        <Text fontSize="10px" color="gray.500" textTransform="capitalize">
+          {[st.created_by_name, ago(st.created_at, now)].filter(Boolean).join(" · ")}
+        </Text>
+      </Box>
+    );
+  }
   const f = o.last_followup;
   if (!f) {
     return (
@@ -194,6 +215,36 @@ function LastFollowup({ o, now }) {
 
 /** One remark in the history list. */
 function RemarkItem({ r, now, showPo }) {
+  const kind = r.kind || "REMARK";
+  if (kind !== "REMARK") {
+    return (
+      <Box py={3} borderBottomWidth="1px" borderColor="gray.100" bg="gray.50" px={2} borderRadius="sm">
+        <Flex justify="space-between" gap={2} align="baseline">
+          <Text fontSize="xs" fontWeight="700" color={kind === "STOP" ? "gray.700" : "teal.700"}>
+            {kind === "STOP" ? "⏹ Follow-up stopped" : "▶ Follow-up resumed"}
+            <Text as="span" fontWeight="400" color="gray.500" textTransform="capitalize">
+              {" "}
+              · {r.created_by_name || "—"}
+              {showPo && r.po_ref ? ` · PO ${r.po_ref}` : ""}
+            </Text>
+          </Text>
+          <Text fontSize="10px" color="gray.500" whiteSpace="nowrap">
+            {r.created_at ? new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""} · {ago(r.created_at, now)}
+          </Text>
+        </Flex>
+        {kind === "STOP" ? (
+          <Text fontSize="sm" color="gray.800" mt={1}>
+            {stopReasonText(r.stop_reason)}
+          </Text>
+        ) : null}
+        {r.remark ? (
+          <Text fontSize="sm" color="gray.700" mt={1} whiteSpace="pre-wrap">
+            {r.remark}
+          </Text>
+        ) : null}
+      </Box>
+    );
+  }
   return (
     <Box py={3} borderBottomWidth="1px" borderColor="gray.100">
       <Flex justify="space-between" gap={2} align="baseline">
@@ -224,7 +275,121 @@ function RemarkItem({ r, now, showPo }) {
 }
 
 /** Side panel for one PO: add a follow-up, see this PO's and the supplier's history. */
-function FollowupDrawer({ order, today, canAdd, onClose, onSaved }) {
+/** Stop following a PO (with a reason), or resume a stopped one. */
+function StopControls({ order, canStop, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const stopped = isStopped(order);
+  useEffect(() => {
+    setOpen(false);
+    setReason("");
+    setNote("");
+  }, [order.po_slug]);
+
+  const done = (res, okText) => {
+    if (res && res.code === 200) {
+      toast.success(okText);
+      setOpen(false);
+      setReason("");
+      setNote("");
+      onChanged();
+    } else toast.error((res && res.msg) || "Could not save");
+  };
+  const stop = () => {
+    if (!reason) return toast.error("Choose why");
+    if (reason === "OTHER" && !note.trim()) return toast.error("Add a note saying why");
+    setBusy(true);
+    PoTrackerHelper.stopFollowup(order.po_slug, { reason, note: note.trim() })
+      .then((res) => done(res, "Follow-up stopped"))
+      .catch((err) => toast.error(err.message || "Could not save"))
+      .finally(() => setBusy(false));
+  };
+  const resume = () => {
+    setBusy(true);
+    PoTrackerHelper.resumeFollowup(order.po_slug, {})
+      .then((res) => done(res, "Follow-up resumed"))
+      .catch((err) => toast.error(err.message || "Could not save"))
+      .finally(() => setBusy(false));
+  };
+
+  if (stopped) {
+    const st = order.stopped;
+    return (
+      <Box bg="gray.100" borderRadius="md" p={3} mt={2}>
+        <Flex justify="space-between" align="flex-start" gap={3}>
+          <Box>
+            <Text fontSize="sm" fontWeight="700" color="gray.800">
+              Follow-up stopped · {stopReasonText(st.stop_reason)}
+            </Text>
+            {st.remark ? (
+              <Text fontSize="sm" color="gray.700">
+                {st.remark}
+              </Text>
+            ) : null}
+            <Text fontSize="xs" color="gray.500" textTransform="capitalize">
+              {[st.created_by_name, st.created_at ? new Date(st.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : null].filter(Boolean).join(" · ")}
+            </Text>
+            <Text fontSize="10px" color="gray.500" mt={1}>
+              Not in Needs follow-up or the 7 pm summary. The PO is still open in RetailPilot until it is closed there.
+            </Text>
+          </Box>
+          {canStop ? (
+            <Button size="sm" colorScheme="teal" onClick={resume} isLoading={busy} flexShrink={0}>
+              Resume follow-up
+            </Button>
+          ) : null}
+        </Flex>
+      </Box>
+    );
+  }
+  if (!canStop) return null;
+  if (!open) {
+    return (
+      <Flex justify="flex-end" mt={2}>
+        <Button size="xs" variant="outline" colorScheme="gray" onClick={() => setOpen(true)} leftIcon={<i className="fa-solid fa-circle-stop" />}>
+          Stop follow-up
+        </Button>
+      </Flex>
+    );
+  }
+  return (
+    <Box borderWidth="1px" borderColor="gray.300" borderRadius="md" p={3} mt={2}>
+      <Text fontSize="sm" fontWeight="700" mb={2}>
+        Stop following this PO
+      </Text>
+      <FormControl mb={2} isRequired>
+        <FormLabel fontSize="xs" color="gray.600" mb={1}>
+          Why
+        </FormLabel>
+        <Select size="sm" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Choose a reason">
+          {STOP_REASONS.map((r) => (
+            <option key={r.key} value={r.key}>
+              {r.label}
+            </option>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl mb={3} isRequired={reason === "OTHER"}>
+        <FormLabel fontSize="xs" color="gray.600" mb={1}>
+          Note {reason === "OTHER" ? "" : "(optional)"}
+        </FormLabel>
+        <Textarea size="sm" rows={2} maxLength={1000} placeholder="e.g. Got it from Sri Balaji, PO 902" value={note} onChange={(e) => setNote(e.target.value)} />
+      </FormControl>
+      <Flex gap={2} justify="flex-end">
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button size="sm" colorScheme="red" onClick={stop} isLoading={busy}>
+          Stop follow-up
+        </Button>
+      </Flex>
+    </Box>
+  );
+}
+
+function FollowupDrawer({ order, today, canAdd, canStop, onClose, onSaved, onChanged }) {
   const [history, setHistory] = useState({ loading: true, error: null, remarks: [], supplier: [] });
   const [form, setForm] = useState({ channel: "CALL", remark: "", promised_delivery_date: "", next_follow_up_date: "" });
   const [saving, setSaving] = useState(false);
@@ -291,7 +456,17 @@ function FollowupDrawer({ order, today, canAdd, onClose, onSaved }) {
           ) : null}
         </DrawerHeader>
         <DrawerBody>
-          {canAdd ? (
+          {order ? (
+            <StopControls
+              order={order}
+              canStop={canStop}
+              onChanged={() => {
+                loadHistory();
+                onChanged();
+              }}
+            />
+          ) : null}
+          {canAdd && !(order && isStopped(order)) ? (
             <Box bg="gray.50" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3} mt={2}>
               <Text fontSize="sm" fontWeight="700" mb={2}>
                 Add follow-up
@@ -415,6 +590,7 @@ export default function PoTrackerView() {
   const [stageKey, setStageKey] = useState("followup");
   const [openSlug, setOpenSlug] = useState(null);
   const canAdd = usePermissions(["add_po_followup"]);
+  const canStop = usePermissions(["stop_po_followup"]);
   const getsSummary = usePermissions(["receive_po_daily_summary"]);
   const [sendingSummary, setSendingSummary] = useState(false);
   const sendSummary = () => {
@@ -450,7 +626,8 @@ export default function PoTrackerView() {
   const now = Date.now();
   const opts = useMemo(() => options(all), [all]);
   const stages = useMemo(() => splitByStage(filterOrders(all, { store, raisedBy, search })), [all, store, raisedBy, search]);
-  const visibleStages = STAGES.filter((s) => s.key !== "other" || stages.other.length);
+  // Stopped and Other only appear when they hold something.
+  const visibleStages = STAGES.filter((s) => !["other", "stopped"].includes(s.key) || stages[s.key].length);
   // Needs follow-up is a view across Awaiting delivery and Expired, not a stage of its own.
   const lists = useMemo(
     () => ({ ...stages, followup: [...stages.awaiting, ...stages.expired].filter((o) => o.needs_followup) }),
@@ -460,7 +637,7 @@ export default function PoTrackerView() {
   const stage = views.find((s) => s.key === stageKey) || views[0];
   const rows = useMemo(() => sortOrders(lists[stage.key], sort), [lists, stage.key, sort]);
   // Received is only worth a column where something can have been received.
-  const showReceived = stage.key === "partly" || stage.key === "fulfilled" || stage.key === "other";
+  const showReceived = ["partly", "fulfilled", "other", "stopped"].includes(stage.key);
   const openOrder = all.find((o) => o.po_slug === openSlug) || null;
 
   // A saved remark shows at once: patch the row instead of re-reading RetailPilot.
@@ -664,7 +841,15 @@ export default function PoTrackerView() {
         </>
       ) : null}
 
-      <FollowupDrawer order={openOrder} today={today} canAdd={canAdd} onClose={() => setOpenSlug(null)} onSaved={onSaved} />
+      <FollowupDrawer
+        order={openOrder}
+        today={today}
+        canAdd={canAdd}
+        canStop={canStop}
+        onClose={() => setOpenSlug(null)}
+        onSaved={onSaved}
+        onChanged={() => load(false)}
+      />
     </Flex>
   );
 }

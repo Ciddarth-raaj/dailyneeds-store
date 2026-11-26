@@ -6,6 +6,8 @@
  */
 
 const pastValidity = (o) => Number(o.days_past_validity) > 0;
+/** Follow-up stopped on a PO that is still open (a fulfilled one is just Fulfilled). */
+const isStopped = (o) => Boolean(o.stopped) && o.status !== "FULFILLED";
 
 /**
  * The stages a PO moves through. Each PO is in exactly one:
@@ -20,6 +22,7 @@ const STAGES = [
   { key: "partly", label: "Partly received", hint: "Some items received, rest pending", color: "orange", test: (o) => o.status === "PARTIALLY_FULFILLED" },
   { key: "expired", label: "Expired", hint: "Nothing received and past validity", color: "red", test: (o) => o.status === "APPROVED" && pastValidity(o) },
   { key: "fulfilled", label: "Fulfilled", hint: "Fully received", color: "green", test: (o) => o.status === "FULFILLED" },
+  { key: "stopped", label: "Stopped", hint: "Follow-up stopped: other vendor, vendor changed, not needed", color: "gray", test: (o) => isStopped(o) },
   { key: "other", label: "Other", hint: "Draft, closed or other status", color: "gray", test: () => true },
 ];
 
@@ -46,7 +49,16 @@ function ago(iso, now = Date.now()) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-const stageOf = (o) => STAGES.find((s) => s.test(o)).key;
+// Stopped first: a stopped PO leaves Awaiting delivery / Expired / Partly received.
+const stageOf = (o) => (isStopped(o) ? "stopped" : STAGES.find((s) => s.test(o)).key);
+
+const STOP_REASONS = [
+  { key: "OTHER_VENDOR", label: "Received from another vendor" },
+  { key: "VENDOR_CHANGED", label: "Vendor changed" },
+  { key: "NOT_NEEDED", label: "Follow-up not needed" },
+  { key: "OTHER", label: "Other" },
+];
+const stopReasonText = (key) => (STOP_REASONS.find((r) => r.key === key) || {}).label || key || "";
 
 /** Orders -> { [stage key]: orders }. */
 function splitByStage(orders) {
@@ -145,7 +157,12 @@ function excelRow(o) {
     "Follow-up via": f.channel ? channelText(f.channel) : null,
     "Promised delivery": f.promised_delivery_date || null,
     "Next follow-up": f.next_follow_up_date || null,
+    "Follow-up stopped": o.stopped ? "Yes" : "No",
+    "Stop reason": o.stopped ? stopReasonText(o.stopped.stop_reason) : null,
+    "Stop note": o.stopped ? o.stopped.remark || null : null,
+    "Stopped by": o.stopped ? o.stopped.created_by_name || null : null,
+    "Stopped on": o.stopped ? o.stopped.created_day || null : null,
   };
 }
 
-module.exports = { FOLLOW_UP_VIEW, CHANNELS, channelText, ago, STAGES, SORTS, stageOf, splitByStage, statusText, options, filterOrders, sortOrders, totals, daysFrom, excelRow };
+module.exports = { STOP_REASONS, stopReasonText, isStopped, FOLLOW_UP_VIEW, CHANNELS, channelText, ago, STAGES, SORTS, stageOf, splitByStage, statusText, options, filterOrders, sortOrders, totals, daysFrom, excelRow };

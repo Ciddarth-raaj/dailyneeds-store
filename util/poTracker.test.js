@@ -3,7 +3,7 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { ago, channelText, splitByStage, excelRow, statusText, options, filterOrders, sortOrders, totals, daysFrom } = require("./poTracker");
+const { stopReasonText, ago, channelText, splitByStage, excelRow, statusText, options, filterOrders, sortOrders, totals, daysFrom } = require("./poTracker");
 
 const LIST = [
   { po_slug: "a", po_ref: "PO-1", supplier: "Acme", store: "Warehouse", raised_by: "Ravi", status: "APPROVED", days_past_validity: 3, pending_value: 100, po_date: "2026-11-02" },
@@ -55,5 +55,16 @@ describe("po tracker page", () => {
     const now = Date.parse("2026-11-16T10:00:00Z");
     assert.equal(ago("2026-11-16T07:00:00Z", now), "3h ago");
     assert.equal(ago("2026-11-14T10:00:00Z", now), "2d ago");
+  });
+  it("a stopped open PO moves to Stopped; a fulfilled one stays Fulfilled", () => {
+    const stopped = { stop_reason: "VENDOR_CHANGED", remark: "Now from Sri Balaji", created_by_name: "Ravi", created_day: "2026-11-20" };
+    const st = splitByStage([{ ...LIST[0], stopped }, { ...LIST[1], stopped }, { ...LIST[2], stopped }, LIST[3]]);
+    assert.deepEqual(st.stopped.map((o) => o.po_slug), ["a", "b"]);
+    assert.deepEqual(st.fulfilled.map((o) => o.po_slug), ["c"]);
+    assert.deepEqual(st.awaiting.map((o) => o.po_slug), ["d"]);
+    const row = excelRow({ ...LIST[0], stopped });
+    assert.equal(row.Stage, "Stopped");
+    assert.equal(row["Stop reason"], "Vendor changed");
+    assert.equal(stopReasonText("OTHER_VENDOR"), "Received from another vendor");
   });
 });
