@@ -417,7 +417,6 @@ export const PERMISSIONS = {
     // add_purchase_order: "Add Purchase Order",
     view_po_tracker: "View PO Tracker",
     add_po_followup: "Add PO Follow-up Remarks",
-    stop_po_followup: "Stop / Resume PO Follow-up",
     receive_po_daily_summary: "Receive PO Daily Summary (Telegram, 7 pm)",
     view_my_oos: "Open Out of Stock Follow-up (own suppliers' lines)",
     chase_oos: "Chase Out of Stock (every buyer's lines, scoreboard)",

@@ -590,7 +590,8 @@ export default function PoTrackerView() {
   const [stageKey, setStageKey] = useState("followup");
   const [openSlug, setOpenSlug] = useState(null);
   const canAdd = usePermissions(["add_po_followup"]);
-  const canStop = usePermissions(["stop_po_followup"]);
+  // Everyone who can open the tracker can stop / resume following a PO.
+  const canStop = usePermissions(["view_po_tracker"]);
   const getsSummary = usePermissions(["receive_po_daily_summary"]);
   const [sendingSummary, setSendingSummary] = useState(false);
   const sendSummary = () => {
