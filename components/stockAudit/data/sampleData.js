@@ -13,7 +13,7 @@
  *   "no-allotment"  - today: allotted / pending / completion are Unavailable
  */
 
-import { available, pending, unavailable, notApplicable, known, requiredSample, employeeIncentive, roleIncentive, omStoreAmount, saplPoints, SAPL_DEFAULT_WEIGHTS, SAPL_PRIZE } from "./calc";
+import { available, pending, unavailable, notApplicable, known, requiredSample, employeeIncentive, estimateIncentive, roleIncentive, omStoreAmount, saplPoints, SAPL_DEFAULT_WEIGHTS, SAPL_PRIZE } from "./calc";
 
 export const SOURCE = "SAMPLE";
 export const TODAY = "2026-11-27";
@@ -146,6 +146,13 @@ export function employeeView(e, state) {
     calc_status: inc.status,
     sample: inc.sample,
     approved_c: pending("NOT_APPROVED"),
+    est: estimateIncentive({
+      audited: e.audited,
+      pendingEligibility: e.pending_eligibility,
+      allotted: withAllot ? e.allotted : null,
+      verified: e.recount_done,
+      matched: e.recount_matched,
+    }),
   };
 }
 
@@ -181,6 +188,8 @@ export function storeView(st, state) {
     excess_value: Math.round(excessQty * (30 + r() * 18)),
     estimated_employee: list.reduce((t, e) => t + (known(e.estimated) ? e.estimated.value : 0), 0),
     estimated_employee_pending: list.filter((e) => !known(e.estimated)).length,
+    estimate_employee: list.reduce((t, e) => t + (known(e.est.estimate) ? e.est.estimate.value : 0), 0),
+    estimate_employee_none: list.filter((e) => !known(e.est.estimate)).length,
     independent_verification: st.outlet_id === 6 ? null : true,
   };
 }

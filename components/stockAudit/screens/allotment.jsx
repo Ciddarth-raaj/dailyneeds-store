@@ -5,12 +5,13 @@ import { useStockAudit } from "../context";
 import { adapter, useLoad, D } from "../data/adapter";
 import { FIELDS, readWorkbook, guessMapping, missingRequired, validateRows, diffRevision, sampleWorkbook, workbookToFile } from "../data/allotmentImport";
 import { Cell, DataList, FilterBar, Pill, PreviewButton, Section, StatCard, StatGrid, BRAND, fmtNum, fmtDateTime } from "../ui";
-import { Screen, Loader, StoreSelect, CycleSelect, useScope } from "./common";
+import { Screen, Loader, StoreSelect, CycleSelect, useScope, useInitialOutlet } from "./common";
 
 export function AllotmentReport() {
   const { dataState, go } = useStockAudit();
   const scope = useScope();
-  const [outlet, setOutlet] = useState(scope ? String(scope[0]) : "");
+  const initialOutlet = useInitialOutlet();
+  const [outlet, setOutlet] = useState(initialOutlet);
   const [page, setPage] = useState(1);
   const s = useLoad(() => adapter.employees({ state: dataState, outlets: outlet ? [Number(outlet)] : scope, page, size: 15, sort: "allotted" }), [dataState, outlet, page]);
   return (

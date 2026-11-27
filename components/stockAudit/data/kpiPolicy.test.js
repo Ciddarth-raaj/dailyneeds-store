@@ -105,3 +105,29 @@ describe("the same scoring everywhere: dashboards, leaderboard and PDFs", () => 
     assert.ok(!/variance/i.test(text));
   });
 });
+
+describe("estimated individual incentive", async () => {
+  const { estimateIncentive, employeeIncentive } = await import("./calc.js");
+  it("no recounts: pending, never an assumed accuracy", () => {
+    const r = estimateIncentive({ audited: 400, verified: 0 });
+    assert.equal(r.estimate.status, "PENDING");
+    assert.equal(r.maxSoFar.value, 440);
+  });
+  it("partial sample uses the accuracy so far; same numbers as the backend", () => {
+    const r = estimateIncentive({ audited: 400, allotted: 800, verified: 10, matched: 10 });
+    assert.equal(r.basis, "PARTIAL_SAMPLE");
+    assert.equal(r.estimate.value, 440);
+    assert.equal(r.projected.value, 880);
+    assert.equal(estimateIncentive({ audited: 1000, verified: 1000, matched: 969 }).estimate.value, 500);
+    assert.equal(estimateIncentive({ audited: 300, pendingEligibility: 20, verified: 15, matched: 15 }).estimate.value, 308);
+  });
+  it("does not make the payable amount available", () => {
+    assert.equal(employeeIncentive({ audited: 400, eligible: 400, verified: 10, matched: 10 }).amount.status, "PENDING");
+  });
+  it("sample employees all carry an estimate cell", async () => {
+    const D = await import("./sampleData.js");
+    const v = D.employees().map((e) => D.employeeView(e, "allotment"));
+    assert.ok(v.every((e) => e.est && e.est.estimate && e.est.estimate.status));
+    assert.ok(v.some((e) => e.est.estimate.status === "AVAILABLE"));
+  });
+});

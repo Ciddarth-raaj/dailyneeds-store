@@ -39,6 +39,9 @@ export function Cell({ c, kind = "num", size = "sm", showReason = false }) {
     return (
       <Text as="span" fontWeight={600}>
         {v}
+        {c.estimate ? (
+          <Badge ml={1} colorScheme="orange" variant="subtle" fontSize="0.6em" textTransform="none">est.</Badge>
+        ) : null}
         {c.provisional ? (
           <Badge ml={1} colorScheme="purple" variant="subtle" fontSize="0.6em">provisional</Badge>
         ) : null}
@@ -89,9 +92,13 @@ export function StatCard({ label, sub, c, kind = "num", accent = BRAND.purple, o
   return (
     <Box
       bg="white" borderRadius="lg" border="1px solid" borderColor="gray.100" p={3} boxShadow="sm" borderTop="3px solid" borderTopColor={accent}
-      cursor={onClick ? "pointer" : "default"} onClick={onClick} _hover={onClick ? { boxShadow: "md" } : undefined} minW={0}
+      cursor={onClick ? "pointer" : "default"} onClick={onClick} _hover={onClick ? { boxShadow: "md", borderColor: "purple.200" } : undefined} minW={0}
+      position="relative" _active={onClick ? { transform: "scale(0.98)" } : undefined} transition="transform 0.08s"
+      role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} aria-label={onClick ? `${label}: open details` : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
     >
-      <Text fontSize="11px" color="gray.500" textTransform="uppercase" letterSpacing="0.03em" noOfLines={2}>{label}</Text>
+      {onClick ? <Text position="absolute" top={2} right={2} fontSize="md" lineHeight="1" color="purple.300" aria-hidden="true">›</Text> : null}
+      <Text fontSize="11px" color="gray.500" textTransform="uppercase" letterSpacing="0.03em" noOfLines={2} pr={onClick ? 3 : 0}>{label}</Text>
       {tamil ? <Text fontSize="10px" color="gray.400">{tamil}</Text> : null}
       <Box fontSize={{ base: "lg", md: "xl" }} mt={1} color="gray.800"><Cell c={c} kind={kind} size="md" showReason /></Box>
       {sub ? <Text fontSize="11px" color="gray.500" mt={1}>{sub}</Text> : null}

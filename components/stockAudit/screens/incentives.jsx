@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { Badge, Box, Button, Flex, Heading, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
 import { adapter, useLoad, D } from "../data/adapter";
-import { known, MANAGEMENT, EMPLOYEE_SLABS } from "../data/calc";
+import { known, MANAGEMENT, EMPLOYEE_SLABS, ESTIMATE_BASIS_LABEL } from "../data/calc";
 import { Cell, DataList, FilterBar, KV, Pill, PreviewButton, Progress, Section, SelectField, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtPct } from "../ui";
-import { Screen, Loader, StoreSelect, CycleSelect, useScope, NoAccess } from "./common";
+import { Screen, Loader, StoreSelect, CycleSelect, useScope, NoAccess, useInitialOutlet } from "./common";
 import { P } from "../permissions";
 
 const STATUS_LABEL = {
@@ -16,15 +16,35 @@ const STATUS_LABEL = {
 };
 const StatusBadge = ({ s }) => <Badge colorScheme={(STATUS_LABEL[s] || ["gray"])[0]} textTransform="none">{(STATUS_LABEL[s] || [null, s])[1]}</Badge>;
 
+/** Estimate block, shared by the incentive screen and the employee's own view. */
+export function EstimateBreakdown({ r, tamil = false }) {
+  const e = r.est;
+  return (
+    <Box>
+      <Text fontWeight={600} mb={1}>{tamil ? "Estimated incentive · மதிப்பீடு" : "Estimated incentive (not payable)"}</Text>
+      <Text fontSize="xs" color="gray.500" mb={1}>{ESTIMATE_BASIS_LABEL[e.basis]}</Text>
+      <KV k="Articles audited so far" v={fmtNum(r.audited)} />
+      {r.pending_eligibility ? <KV k="Left out: eligibility under review" v={fmtNum(r.pending_eligibility)} /> : null}
+      <KV k="Recounts so far" v={`${e.sample.verified} (${e.sample.matched} correct) of ${e.sample.required} needed`} />
+      <KV k="Accuracy so far" v={<Cell c={e.accuracy} kind="pct" showReason />} />
+      <KV k="Rate at that accuracy" v={<Cell c={e.rate} kind="money" />} />
+      <KV k="Estimated incentive" v={<Cell c={e.estimate} kind="money" showReason />} />
+      <KV k="If the full allotment is audited" v={<Cell c={e.projected} kind="money" showReason />} />
+      <KV k="Maximum possible so far (99%+)" v={<Cell c={e.maxSoFar} kind="money" />} />
+    </Box>
+  );
+}
+
 export function EmployeeIncentives() {
   const { dataState, can } = useStockAudit();
   const scope = useScope();
-  const [outlet, setOutlet] = useState(scope ? String(scope[0]) : "");
+  const initialOutlet = useInitialOutlet();
+  const [outlet, setOutlet] = useState(initialOutlet);
   const [page, setPage] = useState(1);
   const s = useLoad(() => adapter.employees({ state: dataState, outlets: outlet ? [Number(outlet)] : scope, page, size: 15 }), [dataState, outlet, page]);
   if (!can(P.STORE)) return <Screen title="Employee Incentive Calculation"><NoAccess what="other employees' incentives" /></Screen>;
   return (
-    <Screen title="Employee Incentive Calculation" subtitle="Eligible unique articles × slab rate. Every figure stays an estimate until verified and approved.">
+    <Screen title="Employee Incentive Calculation" subtitle="Estimated = articles audited so far × the slab of the accuracy recounted so far (not payable). Calculated = the payable figure, decided only after the full 5% sample and eligibility review; then it needs approval.">
       <Section>
         <SimpleGrid columns={{ base: 2, md: 4 }} spacing={2} fontSize="sm">
           {EMPLOYEE_SLABS.map((x) => <Box key={x.minAccuracyPct} p={2} bg="purple.50" borderRadius="md"><b>₹{x.rate.toFixed(2)}</b> / article<br /><Text as="span" fontSize="xs">{x.minAccuracyPct}%+ accuracy</Text></Box>)}
@@ -38,19 +58,21 @@ export function EmployeeIncentives() {
             rows={d.rows} page={d.page} pages={d.pages} total={d.total} onPage={setPage} keyOf={(r) => r.rp_user_id}
             renderDetail={(r) => (
               <Box maxW="480px" fontSize="sm">
-                <KV k="Unique articles audited" v={fmtNum(r.audited)} />
+                <EstimateBreakdown r={r} />
+                <Text fontWeight={600} mt={3} mb={1}>Calculated (payable after approval)</Text>
                 <KV k="Recount sample (5%, rounded up)" v={`${r.sample.verified} verified of ${r.sample.required} required`} />
                 <KV k="Correct recounts" v={`${r.sample.matched} of ${r.sample.verified}`} />
                 <KV k="Accuracy (not rounded before the slab)" v={<Cell c={r.accuracy} kind="pct" />} />
                 <KV k="Rate" v={<Cell c={r.rate} kind="money" />} />
-                <KV k="Estimated incentive" v={<Cell c={r.estimated} kind="money" showReason />} />
+                <KV k="Calculated incentive" v={<Cell c={r.estimated} kind="money" showReason />} />
                 {r.provisional != null ? <KV k="If eligibility is confirmed" v={fmtMoney(r.provisional)} /> : null}
               </Box>
             )}
             columns={[
               { key: "name", label: "Employee", primary: true, render: (r) => r.name || r.rp_name },
               { key: "store", label: "Branch", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.store} · {r.designation}</Text> },
-              { key: "est", label: "Estimated", numeric: true, mobileRight: true, render: (r) => <Cell c={r.estimated} kind="money" /> },
+              { key: "est", label: "Estimated", numeric: true, mobileRight: true, render: (r) => <Cell c={r.est.estimate} kind="money" /> },
+              { key: "calc", label: "Calculated", numeric: true, render: (r) => <Cell c={r.estimated} kind="money" /> },
               { key: "audited", label: "Articles", numeric: true, render: (r) => fmtNum(r.audited) },
               { key: "sample", label: "Sample", numeric: true, render: (r) => `${r.sample.verified}/${r.sample.required}` },
               { key: "acc", label: "Accuracy", numeric: true, render: (r) => <Cell c={r.accuracy} kind="pct" /> },
@@ -163,7 +185,7 @@ export function CalculationPreview() {
                 <StatCard label="Pending verification" c={by("PENDING_VERIFICATION")} accent={BRAND.orange} />
                 <StatCard label="Sample below 5%" c={by("INSUFFICIENT_SAMPLE")} accent={BRAND.orange} />
                 <StatCard label="Eligibility review" c={by("PENDING_ELIGIBILITY_REVIEW")} />
-                <StatCard label="Employee estimate (calculated only)" c={calc.reduce((t, e) => t + e.estimated.value, 0)} kind="money" />
+                <StatCard label="Employee incentives (calculated only)" c={calc.reduce((t, e) => t + e.estimated.value, 0)} kind="money" />
               </StatGrid>
               <Section title="Budget view" subtitle="Indicative maximums for one complete cycle and one SAPL prize - not caps">
                 <KV k="Employee incentives (decided)" v={fmtMoney(calc.reduce((t, e) => t + e.estimated.value, 0))} />

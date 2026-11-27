@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Badge, Box, Button, Flex, Heading, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
 import { adapter, useLoad, D } from "../data/adapter";
-import { available, pending, known, unavailable } from "../data/calc";
+import { available, pending, known, unavailable, ESTIMATE_BASIS_LABEL } from "../data/calc";
+import { EstimateBreakdown } from "./incentives";
 import { Cell, DataList, FilterBar, KV, Pill, Progress, SearchField, Section, SelectField, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtDateTime, fmtDate } from "../ui";
-import { Screen, Loader, StoreSelect, CycleSelect, Freshness, useScope, NoAccess } from "./common";
+import { Screen, Loader, StoreSelect, CycleSelect, Freshness, useScope, NoAccess, useNav } from "./common";
 import { P } from "../permissions";
 
 const total = (list, f) => list.reduce((t, x) => t + f(x), 0);
@@ -15,6 +16,7 @@ export function CompanyDashboard() {
   const scope = useScope();
   const s = useLoad(() => adapter.stores({ state: dataState, outlets: scope }), [dataState, scope]);
   const m = useLoad(() => adapter.management({ state: dataState }), [dataState]);
+  const nav = useNav();
   if (!can(P.COMPANY)) return <Screen title="Company-wide Stock Audit Dashboard"><NoAccess what="the company-wide dashboard" /></Screen>;
   return (
     <Screen title="Company-wide Stock Audit Dashboard" subtitle="Q4 2026 Full Audit · five retail stores (warehouse excluded)" actions={<Freshness />}>
@@ -35,26 +37,26 @@ export function CompanyDashboard() {
           return (
             <>
               <StatGrid cols={{ base: 2, md: 3, lg: 5 }}>
-                <StatCard label="Participating stores" c={stores.length} sub="Warehouse excluded" />
-                <StatCard label="Eligible employees" c={total(stores, (x) => x.eligible_employees)} />
-                <StatCard label="Employees participating" c={total(stores, (x) => x.participating)} />
-                <StatCard label="Articles allotted" c={allotted} />
-                <StatCard label="Audited today" c={total(stores, (x) => x.audited_today)} accent={BRAND.orange} />
-                <StatCard label="Total audited" c={audited} />
-                <StatCard label="Pending articles" c={known(allotted) ? available(allotted.value - audited) : allotted} />
-                <StatCard label="Completion" kind="pct" c={known(allotted) ? available((audited * 100) / allotted.value) : allotted} />
-                <StatCard label="Recounts" c={verified} sub={`of ${fmtNum(required)} required (5%)`} />
-                <StatCard label="Counting accuracy" kind="pct" c={matchedPctCell} accent={BRAND.orange} />
+                <StatCard label="Participating stores" c={stores.length} sub="Warehouse excluded" onClick={nav("store")} />
+                <StatCard label="Eligible employees" c={total(stores, (x) => x.eligible_employees)} onClick={nav("employees")} />
+                <StatCard label="Employees participating" c={total(stores, (x) => x.participating)} onClick={nav("employees")} />
+                <StatCard label="Articles allotted" c={allotted} onClick={nav("allotment")} />
+                <StatCard label="Audited today" c={total(stores, (x) => x.audited_today)} accent={BRAND.orange} onClick={nav("employees")} />
+                <StatCard label="Total audited" c={audited} onClick={nav("articles")} />
+                <StatCard label="Pending articles" c={known(allotted) ? available(allotted.value - audited) : allotted} onClick={nav("allotment")} />
+                <StatCard label="Completion" kind="pct" c={known(allotted) ? available((audited * 100) / allotted.value) : allotted} onClick={nav("allotment")} />
+                <StatCard label="Recounts" c={verified} sub={`of ${fmtNum(required)} required (5%)`} onClick={nav("verification")} />
+                <StatCard label="Counting accuracy" kind="pct" c={matchedPctCell} accent={BRAND.orange} onClick={nav("verification")} />
               </StatGrid>
               <StatGrid cols={{ base: 2, md: 4 }}>
-                <StatCard label="Shortage (review only)" c={total(stores, (x) => x.shortage_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.shortage_qty))} units`} accent="red.400" />
-                <StatCard label="Excess (review only)" c={total(stores, (x) => x.excess_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.excess_qty))} units`} accent="green.400" />
-                <StatCard label="Net variance (review only)" c={total(stores, (x) => x.excess_value - x.shortage_value)} kind="money" sub="Not used for incentives or rankings" />
-                <StatCard label="Estimated employee incentives" c={total(stores, (x) => x.estimated_employee)} kind="money" sub={`${total(stores, (x) => x.estimated_employee_pending)} employees still pending`} />
-                <StatCard label="Estimated management incentives" c={mgmtDecided} kind="money" sub="Decided KPIs only; others pending" />
-                <StatCard label="Approved incentives" c={pending("NOT_APPROVED")} kind="money" />
-                <StatCard label="Payroll-processed" c={pending("NOT_APPROVED")} kind="money" />
-                <StatCard label="SAPL prize" c={10000} kind="money" sub="Separate team incentive" accent="yellow.400" onClick={() => go("sapl")} />
+                <StatCard label="Shortage (review only)" c={total(stores, (x) => x.shortage_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.shortage_qty))} units`} accent="red.400" onClick={nav("variance")} />
+                <StatCard label="Excess (review only)" c={total(stores, (x) => x.excess_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.excess_qty))} units`} accent="green.400" onClick={nav("variance")} />
+                <StatCard label="Net variance (review only)" c={total(stores, (x) => x.excess_value - x.shortage_value)} kind="money" sub="Not used for incentives or rankings" onClick={nav("variance")} />
+                <StatCard label="Estimated employee incentives" c={total(stores, (x) => x.estimate_employee)} kind="money" sub={`Calculated so far ${fmtMoney(total(stores, (x) => x.estimated_employee))} · ${total(stores, (x) => x.estimate_employee_none)} without recounts`} onClick={nav("incentives")} />
+                <StatCard label="Estimated management incentives" c={mgmtDecided} kind="money" sub="Decided KPIs only; others pending" onClick={nav("store-manager") || nav("supervisor")} />
+                <StatCard label="Approved incentives" c={pending("NOT_APPROVED")} kind="money" onClick={nav("approvals") || nav("incentive-history")} />
+                <StatCard label="Payroll-processed" c={pending("NOT_APPROVED")} kind="money" onClick={nav("incentive-history")} />
+                <StatCard label="SAPL prize" c={10000} kind="money" sub="Separate team incentive" accent="yellow.400" onClick={nav("sapl")} />
               </StatGrid>
               <Section title="Stores" subtitle="Tap a store to drill down: Store → Employee → Article → Audit history">
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={3}>
@@ -86,6 +88,7 @@ export function StoreDashboard() {
   const scope = useScope();
   const [outlet, setOutlet] = useState(String(params.outlet || (scope ? scope[0] : 7)));
   const s = useLoad(() => adapter.store({ state: dataState, outletId: outlet }), [dataState, outlet]);
+  const nav = useNav();
   if (scope && !scope.includes(Number(outlet))) return <Screen title="Store Dashboard"><NoAccess what="this store" /></Screen>;
   return (
     <Screen title="Store-wise Stock Audit Dashboard" back={{ label: "Company dashboard", path: "company" }} actions={<Freshness />}>
@@ -97,18 +100,18 @@ export function StoreDashboard() {
         {(st) => (
           <>
             <StatGrid cols={{ base: 2, md: 3, lg: 6 }}>
-              <StatCard label="Articles allotted" c={st.allotted} />
-              <StatCard label="Audited today" c={st.audited_today} accent={BRAND.orange} />
-              <StatCard label="Total audited" c={st.audited} />
-              <StatCard label="Pending" c={st.pending} />
-              <StatCard label="Completion" c={st.completion} kind="pct" />
-              <StatCard label="Accuracy" c={st.accuracy} kind="pct" accent={BRAND.orange} />
-              <StatCard label="Recounts" c={st.recount_done} sub={`of ${fmtNum(st.recount_required)} required`} />
-              <StatCard label="Shortage value" c={st.shortage_value} kind="money" accent="red.400" />
-              <StatCard label="Excess value" c={st.excess_value} kind="money" accent="green.400" />
-              <StatCard label="Recount progress" c={st.recount_progress} kind="pct" />
-              <StatCard label="Employees participating" c={`${st.participating} of ${st.eligible_employees}`} kind="raw" />
-              <StatCard label="Estimated employee incentives" c={st.estimated_employee} kind="money" />
+              <StatCard label="Articles allotted" c={st.allotted} onClick={nav("allotment", { outlet: st.outlet_id })} />
+              <StatCard label="Audited today" c={st.audited_today} accent={BRAND.orange} onClick={nav("employees", { outlet: st.outlet_id })} />
+              <StatCard label="Total audited" c={st.audited} onClick={nav("employees", { outlet: st.outlet_id })} />
+              <StatCard label="Pending" c={st.pending} onClick={nav("allotment", { outlet: st.outlet_id })} />
+              <StatCard label="Completion" c={st.completion} kind="pct" onClick={nav("allotment", { outlet: st.outlet_id })} />
+              <StatCard label="Accuracy" c={st.accuracy} kind="pct" accent={BRAND.orange} onClick={nav("verification", { outlet: st.outlet_id })} />
+              <StatCard label="Recounts" c={st.recount_done} sub={`of ${fmtNum(st.recount_required)} required`} onClick={nav("verification", { outlet: st.outlet_id })} />
+              <StatCard label="Shortage value" c={st.shortage_value} kind="money" accent="red.400" onClick={nav("variance", { outlet: st.outlet_id })} />
+              <StatCard label="Excess value" c={st.excess_value} kind="money" accent="green.400" onClick={nav("variance", { outlet: st.outlet_id })} />
+              <StatCard label="Recount progress" c={st.recount_progress} kind="pct" onClick={nav("verification", { outlet: st.outlet_id })} />
+              <StatCard label="Employees participating" c={`${st.participating} of ${st.eligible_employees}`} kind="raw" onClick={nav("employees", { outlet: st.outlet_id })} />
+              <StatCard label="Estimated employee incentives" c={st.estimate_employee} kind="money" sub={`Calculated so far ${fmtMoney(st.estimated_employee)} · ${st.estimate_employee_none} without recounts`} onClick={nav("incentives", { outlet: st.outlet_id })} />
             </StatGrid>
             <Section title="Employees" subtitle="Tap an employee for article-level details" actions={<Button size="sm" variant="outline" colorScheme="purple" onClick={() => go("employees", { outlet: st.outlet_id })}>Full employee report</Button>}>
               <DataList
@@ -169,7 +172,8 @@ export function EmployeePerformance() {
               { key: "req", label: "Recounts req.", numeric: true, render: (r) => fmtNum(r.recount_required) },
               { key: "done", label: "Recounts done", numeric: true, render: (r) => fmtNum(r.recount_done) },
               { key: "accuracy", label: "Accuracy", numeric: true, render: (r) => <Cell c={r.accuracy} kind="pct" /> },
-              { key: "est", label: "Estimated", numeric: true, render: (r) => <Cell c={r.estimated} kind="money" /> },
+              { key: "est", label: "Estimated", numeric: true, render: (r) => <Cell c={r.est.estimate} kind="money" /> },
+              { key: "calc", label: "Calculated", numeric: true, render: (r) => <Cell c={r.estimated} kind="money" /> },
               { key: "appr", label: "Approved", numeric: true, render: (r) => <Cell c={r.approved_c} kind="money" /> },
               { key: "pay", label: "Payment", render: () => <Pill color="gray">Not started</Pill> },
             ]}
@@ -198,18 +202,22 @@ export function MyStockAudit() {
             </Section>
             <StatGrid cols={{ base: 2, md: 4 }}>
               <StatCard label="Articles allotted" tamil="ஒதுக்கப்பட்ட பொருட்கள்" c={e.allotted_c} />
-              <StatCard label="Audited today" tamil="இன்று சரிபார்த்தவை" c={e.today} accent={BRAND.orange} />
-              <StatCard label="Total audited" tamil="மொத்தம் சரிபார்த்தவை" c={e.audited} />
+              <StatCard label="Audited today" tamil="இன்று சரிபார்த்தவை" c={e.today} accent={BRAND.orange} onClick={() => go("articles", { user: e.rp_user_id })} />
+              <StatCard label="Total audited" tamil="மொத்தம் சரிபார்த்தவை" c={e.audited} onClick={() => go("articles", { user: e.rp_user_id })} />
               <StatCard label="Pending" tamil="மீதமுள்ளவை" c={e.pending_c} />
-              <StatCard label="Recounts" tamil="மறு எண்ணிக்கை" c={`${e.recount_done} / ${e.recount_required}`} kind="raw" sub="Done / required (5%)" />
-              <StatCard label="Counting accuracy" tamil="எண்ணிக்கை துல்லியம்" c={e.accuracy} kind="pct" accent={BRAND.orange} />
-              <StatCard label="Estimated incentive" tamil="மதிப்பிடப்பட்ட ஊக்கத்தொகை" c={e.estimated} kind="money" sub={e.provisional != null ? `If eligibility is confirmed: ${fmtMoney(e.provisional)}` : null} />
+              <StatCard label="Recounts" tamil="மறு எண்ணிக்கை" c={`${e.recount_done} / ${e.recount_required}`} kind="raw" sub="Done / required (5%)" onClick={() => go("articles", { user: e.rp_user_id })} />
+              <StatCard label="Counting accuracy" tamil="எண்ணிக்கை துல்லியம்" c={e.accuracy} kind="pct" accent={BRAND.orange} onClick={() => go("articles", { user: e.rp_user_id })} />
+              <StatCard label="Estimated incentive" tamil="மதிப்பிடப்பட்ட ஊக்கத்தொகை" c={e.est.estimate} kind="money" accent={BRAND.orange} sub={ESTIMATE_BASIS_LABEL[e.est.basis]} />
+              <StatCard label="If full allotment audited" tamil="முழு ஒதுக்கீடு முடிந்தால்" c={e.est.projected} kind="money" sub="At your accuracy so far" />
+              <StatCard label="Calculated incentive" tamil="கணக்கிடப்பட்ட ஊக்கத்தொகை" c={e.estimated} kind="money" sub={e.provisional != null ? `If eligibility is confirmed: ${fmtMoney(e.provisional)}` : "After the full 5% recount sample"} />
               <StatCard label="Approved incentive" tamil="அங்கீகரிக்கப்பட்ட ஊக்கத்தொகை" c={e.approved_c} kind="money" />
             </StatGrid>
+            <Section><EstimateBreakdown r={e} tamil /></Section>
             <Section title="How your incentive works · ஊக்கத்தொகை எப்படி">
               <Stack fontSize="sm" spacing={1}>
                 <Text>₹1.10 per article at 99% accuracy or more · ₹1.00 at 97% · ₹0.50 at 95% · nil below 95%.</Text>
                 <Text>Accuracy comes only from independent recounts of your articles (at least 5%). A genuine shortage that the recount confirms is counted as correct.</Text>
+                <Text>The estimate uses your recounts so far and can go up or down as more recounts come in. Only the approved amount is paid.</Text>
               </Stack>
               <Button mt={3} size="sm" colorScheme="purple" onClick={() => go("articles", { user: e.rp_user_id })}>My articles</Button>
             </Section>

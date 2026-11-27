@@ -3,7 +3,7 @@ import { Badge, Box, Stack, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
 import { adapter, useLoad } from "../data/adapter";
 import { DataList, FilterBar, KV, Pill, PreviewButton, Section, SelectField, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtDateTime } from "../ui";
-import { Screen, Loader, StoreSelect, CycleSelect, useScope } from "./common";
+import { Screen, Loader, StoreSelect, CycleSelect, useScope, useInitialOutlet } from "./common";
 import { P } from "../permissions";
 
 const VERDICT = {
@@ -15,7 +15,8 @@ const VERDICT = {
 export function RecountVerification() {
   const { dataState, can } = useStockAudit();
   const scope = useScope();
-  const [outlet, setOutlet] = useState(scope ? String(scope[0]) : "");
+  const initialOutlet = useInitialOutlet();
+  const [outlet, setOutlet] = useState(initialOutlet);
   const [kind, setKind] = useState("");
   const [page, setPage] = useState(1);
   const s = useLoad(() => adapter.verifications({ state: dataState, outletId: outlet ? Number(outlet) : null, page, size: 15 }), [dataState, outlet, page]);
@@ -77,7 +78,8 @@ export function RecountVerification() {
 export function VarianceReport() {
   const { dataState, can } = useStockAudit();
   const scope = useScope();
-  const [outlet, setOutlet] = useState(scope ? String(scope[0]) : "");
+  const initialOutlet = useInitialOutlet();
+  const [outlet, setOutlet] = useState(initialOutlet);
   const [kind, setKind] = useState("");
   const [page, setPage] = useState(1);
   const s = useLoad(() => adapter.variances({ state: dataState, outletId: outlet ? Number(outlet) : null, kind: kind || null, page, size: 15 }), [dataState, outlet, kind, page]);

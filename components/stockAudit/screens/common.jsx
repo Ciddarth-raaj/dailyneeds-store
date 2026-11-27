@@ -1,3 +1,4 @@
+import { SCREENS, allowed } from "../registry";
 import React from "react";
 import { Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
@@ -55,6 +56,24 @@ export function DateSelect({ value, onChange }) {
 export const Freshness = () => <Text fontSize="xs" color="gray.500">Last successful sync: {fmtDateTime(D.LAST_SYNC)} (sample)</Text>;
 
 /** The outlets a viewer is scoped to (null = all). */
+/** Store filter's starting value: the store a tile was tapped for (if in scope), else the caller's own store, else all. */
+export function useInitialOutlet() {
+  const { viewer, params } = useStockAudit();
+  const scope = viewer.outlets;
+  const p = params && params.outlet ? Number(params.outlet) : null;
+  if (p && (!scope || scope.includes(p))) return String(p);
+  return scope ? String(scope[0]) : "";
+}
+
+/** onClick for a dashboard tile: opens the detail screen, or nothing when the viewer may not open it. */
+export function useNav() {
+  const { go, can } = useStockAudit();
+  return (path, params) => {
+    const sc = SCREENS.find((x) => x.path === path);
+    return sc && allowed(sc, can) ? () => go(path, params) : undefined;
+  };
+}
+
 export function useScope() {
   const { viewer } = useStockAudit();
   return viewer.outlets;

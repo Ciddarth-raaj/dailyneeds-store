@@ -155,3 +155,45 @@ export function saplPoints(kpis, weights = SAPL_DEFAULT_WEIGHTS) {
   const total = Math.round(decided.reduce((t, r) => t + r.points, 0) * 10) / 10;
   return { rows, total, complete: decided.length === rows.length };
 }
+
+/**
+ * ESTIMATED incentive while the cycle runs (mirrors backend
+ * estimateEmployeeIncentive). Never payable - approval and payroll use
+ * employeeIncentive().amount only. No recounts -> pending (accuracy is never
+ * assumed); otherwise the slab of the accuracy measured so far.
+ */
+export function estimateIncentive({ audited = 0, pendingEligibility = 0, allotted = null, verified = 0, matched = 0 }) {
+  const required = requiredSample(audited);
+  const sample = { required, verified, matched, met: verified >= required && required > 0 };
+  if (!audited) {
+    const na = notApplicable("NO_ARTICLES");
+    return { basis: "NO_ARTICLES", sample, base: 0, accuracy: na, rate: na, estimate: na, projected: na, maxSoFar: na };
+  }
+  const base = Math.max(0, audited - pendingEligibility);
+  const top = Math.max(...EMPLOYEE_SLABS.map((s) => s.rate));
+  const money = (rate, n) => Math.round(rate * 100) * n / 100;
+  const maxSoFar = available(money(top, base));
+  const allotKnown = allotted != null;
+  if (!verified) {
+    const p = pending("PENDING_VERIFICATION");
+    return { basis: "NO_RECOUNTS", sample, base, accuracy: p, rate: p, estimate: p, projected: allotKnown ? p : unavailable("ALLOTMENT_UNAVAILABLE"), maxSoFar };
+  }
+  const rate = rateFor(matched, verified);
+  return {
+    basis: sample.met ? "SAMPLE_MET" : "PARTIAL_SAMPLE",
+    sample,
+    base,
+    accuracy: available((matched * 100) / verified),
+    rate: available(rate),
+    estimate: available(money(rate, base), { estimate: true }),
+    projected: allotKnown ? available(money(rate, Math.max(0, allotted - pendingEligibility)), { estimate: true }) : unavailable("ALLOTMENT_UNAVAILABLE"),
+    maxSoFar,
+  };
+}
+
+export const ESTIMATE_BASIS_LABEL = {
+  NO_ARTICLES: "No articles audited",
+  NO_RECOUNTS: "No recounts yet - estimate starts after the first recount",
+  PARTIAL_SAMPLE: "Based on recounts so far (5% sample not complete)",
+  SAMPLE_MET: "Based on the full 5% recount sample",
+};
