@@ -259,6 +259,34 @@ export function PolicySettings() {
 const EXCL_COLOR = { REQUESTED: "orange", APPROVED: "green", REJECTED: "red", WITHDRAWN: "gray" };
 
 /** Screen 32: each store's eligible headcount for the cycle, its snapshot, and exclusions (reason + decision by someone else). */
+function DesignationEligibility({ d, onSaved }) {
+  const { can } = useStockAudit();
+  const all = d.eligible_designation_ids === "ALL";
+  const [mode, setMode] = useState(all ? "ALL" : "LIST");
+  const [picked, setPicked] = useState(() => new Set(all ? [] : d.eligible_designation_ids || []));
+  const list = d.designations || [];
+  return (
+    <Section title="Eligible designations" subtitle="Policy: every employee of the store participates, whatever the designation. Narrow only if management decides so; individuals are excluded one by one with a reason and an approval.">
+      <Stack spacing={2} fontSize="sm">
+        <Flex gap={4} wrap="wrap">
+          <Checkbox isChecked={mode === "ALL"} isDisabled={!can(P.POLICY)} onChange={() => setMode("ALL")}>All designations (policy)</Checkbox>
+          <Checkbox isChecked={mode === "LIST"} isDisabled={!can(P.POLICY)} onChange={() => setMode("LIST")}>Only selected designations</Checkbox>
+        </Flex>
+        {mode === "LIST" ? (
+          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={1}>
+            {list.map((x) => (
+              <Checkbox key={x.designation_id} size="sm" isChecked={picked.has(Number(x.designation_id))} isDisabled={!can(P.POLICY)}
+                onChange={(e) => { const n = new Set(picked); if (e.target.checked) n.add(Number(x.designation_id)); else n.delete(Number(x.designation_id)); setPicked(n); }}>{x.designation_name}</Checkbox>
+            ))}
+          </SimpleGrid>
+        ) : null}
+        {can(P.POLICY) ? <Box><Button size="sm" minH="38px" colorScheme="purple" isDisabled={mode === "LIST" && !picked.size} onClick={async () => (await act(() => adapter.updateSettings({ eligible_designation_ids: mode === "ALL" ? "ALL" : [...picked] }), "Eligible designations saved")) && onSaved()}>Save</Button></Box> : null}
+        <Text fontSize="xs" color="gray.500">A store whose snapshot is already taken keeps its frozen headcount; the setting applies to snapshots taken after it.</Text>
+      </Stack>
+    </Section>
+  );
+}
+
 export function EligibleHeadcount() {
   const { can, params } = useStockAudit();
   const [tick, setTick] = useState(0);
@@ -271,6 +299,7 @@ export function EligibleHeadcount() {
       <Loader s={s}>
         {(d) => (
           <Stack spacing={3}>
+            <DesignationEligibility d={d} onSaved={refresh} />
             {d.stores.map((st) => {
               const p = st.participation_detail || {};
               const isOpen = open === String(st.outlet_id);
@@ -286,12 +315,14 @@ export function EligibleHeadcount() {
                     <StatCard label="Participation" c={st.participation} kind="pct" accent={BRAND.orange} sub="× 5 = Premier League points" />
                     <StatCard label="Excluded (approved)" c={(p.excluded || []).length} accent="gray.300" />
                   </StatGrid>
-                  {p.unmapped_counters ? <Text fontSize="xs" color="orange.600" mb={2}>{p.unmapped_counters} RetailPilot user(s) counted here but are not mapped to an employee: their counts do not raise participation until mapped.</Text> : null}
+                  {p.unmapped_counters ? <Text fontSize="xs" color="orange.600" mb={2}><b>Provisional:</b> {p.unmapped_counters} RetailPilot user(s) counted here but are not mapped to an employee yet; their counts raise participation only once HR maps them.</Text> : null}
                   {isOpen ? (
                     <>
-                      <Text fontWeight={600} fontSize="sm" mt={2} mb={1}>Not counted yet ({(p.not_participated || []).length})</Text>
-                      <DataList rows={p.not_participated || []} keyOf={(r) => r.employee_id} columns={[
+                      <Text fontWeight={600} fontSize="sm" mt={2} mb={1}>All eligible employees for HR review ({st.eligible.length})</Text>
+                      <DataList rows={st.eligible || []} keyOf={(r) => r.employee_id} columns={[
                         { key: "name", label: "Employee", primary: true },
+                        { key: "designation", label: "Designation", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.designation || (r.designation_id ? `designation ${r.designation_id}` : "—")}</Text> },
+                        { key: "counted", label: "Counted", mobileRight: true, render: (r) => (r.participated ? <Badge colorScheme="green">yes</Badge> : <Badge colorScheme="gray">not yet</Badge>) },
                         { key: "x", label: "Exclude (reason required)", render: (r) => can(P.CYCLES) ? (
                           <Flex gap={2} direction={{ base: "column", md: "row" }}>
                             <Input size="sm" h="38px" placeholder="Reason, e.g. long leave for the whole cycle" value={reason[r.employee_id] || ""} onChange={(e) => setReason({ ...reason, [r.employee_id]: e.target.value })} />
@@ -326,7 +357,7 @@ export function EligibleHeadcount() {
 }
 
 const ROLE_LABEL = { SUPERVISOR: "Supervisor", STORE_MANAGER: "Store Manager", OPERATIONS_MANAGER: "Operations Manager" };
-const STATE_TEXT = { ASSIGNED: ["green", "assigned"], ONE_CANDIDATE: ["purple", "one qualifies - confirm"], CHOOSE: ["orange", "several qualify - choose"], NO_CANDIDATE: ["red", "nobody qualifies"] };
+const STATE_TEXT = { ASSIGNED: ["green", "assigned"], ONE_CANDIDATE: ["purple", "unassigned - one qualifies"], CHOOSE: ["orange", "unassigned - choose"], NO_CANDIDATE: ["red", "unassigned - nobody eligible"] };
 
 function RoleSlot({ outletId, slot, can, onSaved }) {
   const [pick, setPick] = useState(slot.assigned ? String(slot.assigned.employee_id) : slot.candidates.length === 1 ? String(slot.candidates[0].employee_id) : "");
@@ -338,7 +369,7 @@ function RoleSlot({ outletId, slot, can, onSaved }) {
         <Text fontWeight={600}>{ROLE_LABEL[slot.role]}</Text>
         <Badge colorScheme={c} textTransform="none">{label}</Badge>
       </Flex>
-      {slot.assigned ? <Text fontSize="sm" mb={2}>{slot.assigned.employee_name} <Text as="span" fontSize="xs" color="gray.500">· by {slot.assigned.assigned_by_name || "—"}, {fmtDateTime(slot.assigned.assigned_at)}</Text></Text> : <Text fontSize="sm" color="gray.500" mb={2}>Nobody assigned: this incentive stays pending.</Text>}
+      {slot.assigned ? <Text fontSize="sm" mb={2}>{slot.assigned.employee_name} <Text as="span" fontSize="xs" color="gray.500">· by {slot.assigned.assigned_by_name || "—"}, {fmtDateTime(slot.assigned.assigned_at)}</Text></Text> : <Text fontSize="sm" color="gray.500" mb={2}><b>Unassigned.</b> {slot.state === "NO_CANDIDATE" ? "No eligible employee holds this designation here. The incentive is not moved to anyone else." : "HR selects the responsible person; until then this incentive stays pending."}</Text>}
       {can(P.ROLES) && slot.candidates.length ? (
         <Stack spacing={2}>
           <Select size="sm" h="40px" placeholder="Choose the responsible person" value={pick} onChange={(e) => setPick(e.target.value)}>

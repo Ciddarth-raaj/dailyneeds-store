@@ -143,15 +143,22 @@ export function EmployeePerformance() {
   const [outlet, setOutlet] = useState(params.outlet ? String(params.outlet) : scope ? String(scope[0]) : "");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [view, setView] = useState("mapped");
   const outlets = outlet ? [Number(outlet)] : scope;
-  const s = useLoad(() => adapter.employees({ state: dataState, outlets, search, page, size: 15 }), [dataState, outlet, search, page]);
+  const s = useLoad(() => adapter.employees({ state: dataState, outlets, search, page, size: 15, mapped: view === "mapped" }), [dataState, outlet, search, page, view]);
   return (
     <Screen title="Employee-wise Stock Audit Performance" subtitle="Allotment vs actual RetailPilot audits, recounts, accuracy and incentive" actions={<Freshness />}>
       <FilterBar>
         <StoreSelect value={outlet} onChange={(v) => { setOutlet(v); setPage(1); }} />
         <CycleSelect />
         <SearchField value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Name, employee ID or RetailPilot ID" />
+        <SelectField label="Show" value={view} onChange={(v) => { setView(v); setPage(1); }} options={[{ value: "mapped", label: "Mapped employees" }, { value: "unmapped", label: "Unmapped RetailPilot auditors (provisional)" }]} />
       </FilterBar>
+      {view === "unmapped" ? (
+        <Box p={3} mb={3} bg="orange.50" border="1px solid" borderColor="orange.200" borderRadius="md" fontSize="sm">
+          <b>Provisional.</b> These RetailPilot users counted articles but are not mapped to a DNDS employee yet. Their figures are shown for reconciliation only: no incentive is credited, and they do not raise participation. Once HR maps them, their history moves to the employee automatically - once, never twice.
+        </Box>
+      ) : null}
       <Loader s={s}>
         {(d) => (
           <DataList

@@ -15,8 +15,10 @@ export const sampleAdapter = {
   meta: () => delay({ source: D.SOURCE, today: D.TODAY, last_sync: D.LAST_SYNC, cycles: D.CYCLES, stores: D.STORES, warehouse: D.WAREHOUSE }),
   stores: ({ state, outlets }) => delay(scopeStores(state, outlets)),
   store: ({ state, outletId }) => delay(D.stores(state, [Number(outletId)])[0] || null),
-  employees: ({ state, outlets, search = "", page = 1, size = 20, sort = "audited" }) => {
-    let list = D.employees().filter((e) => !outlets || outlets.includes(e.outlet_id)).map((e) => D.employeeView(e, state));
+  employees: ({ state, outlets, search = "", page = 1, size = 20, sort = "audited", mapped = null }) => {
+    let list = D.employees().filter((e) => !outlets || outlets.includes(e.outlet_id)).map((e) => ({ ...D.employeeView(e, state), mapped: Boolean(e.employee_id) }));
+    if (mapped === true) list = list.filter((e) => e.mapped);
+    if (mapped === false) list = list.filter((e) => !e.mapped);
     if (search) list = list.filter((e) => `${e.name || ""} ${e.rp_name} ${e.code || ""} ${e.rp_user_id}`.toLowerCase().includes(search.toLowerCase()));
     list.sort((a, b) => (sort === "name" ? (a.name || a.rp_name).localeCompare(b.name || b.rp_name) : b[sort] - a[sort]));
     return delay({ rows: list.slice((page - 1) * size, page * size), total: list.length, page, size, pages: Math.max(1, Math.ceil(list.length / size)), source: D.SOURCE });
@@ -49,11 +51,12 @@ export const sampleAdapter = {
     const stores = D.stores(state);
     return delay({
       period_code: D.CYCLES[0].period_code,
-      eligible_designation_ids: [2, 4],
+      eligible_designation_ids: "ALL",
+      designations: [{ designation_id: 1, designation_name: "Customer Service Executive" }, { designation_id: 2, designation_name: "Customer Service Associate" }, { designation_id: 3, designation_name: "Store Manager" }, { designation_id: 4, designation_name: "Cashier" }, { designation_id: 5, designation_name: "Security" }, { designation_id: 8, designation_name: "Delivery Boy" }, { designation_id: 9, designation_name: "Supervisor" }, { designation_id: 10, designation_name: "House Keeping" }],
       stores: stores.map((s) => ({
         outlet_id: s.outlet_id, name: s.name, cycle_id: 100 + s.outlet_id,
         snapshot: s.outlet_id === 7 ? { employee_count: s.eligible_employees, taken_by_name: "HR Manager", taken_at: "2026-11-25T09:00:00+05:30" } : null,
-        eligible: [...s.employees.filter((e) => e.employee_id).map((e) => ({ employee_id: e.employee_id, name: e.name, designation_id: e.designation === "Cashier" ? 4 : 2 })), ...s.participation_detail.not_participated],
+        eligible: [...s.employees.filter((e) => e.employee_id).map((e) => ({ employee_id: e.employee_id, name: e.name, designation: e.designation, participated: e.audited > 0 })), ...s.participation_detail.not_participated.map((e) => ({ ...e, designation: e.designation_id === 4 ? "Cashier" : "Customer Service Associate", participated: false }))],
         participation: s.participation, participation_detail: s.participation_detail,
         exclusions: s.outlet_id === 5 ? [{ id: 1, employee_id: 3999, employee_name: "Revathi K", reason: "Maternity leave for the whole cycle", status: "APPROVED", requested_by_name: "Store HR", requested_at: "2026-11-25T10:00:00+05:30", decided_by_name: "HR Manager", decided_at: "2026-11-25T12:00:00+05:30" }] : [],
       })),

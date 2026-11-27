@@ -24,7 +24,7 @@ export const apiAdapter = {
   meta: () => get("/stock-audit/meta"),
   stores: ({ outlets, period } = {}) => get("/stock-audit/stores", { outlet_id: one(outlets), period }),
   store: ({ outletId, period }) => get(`/stock-audit/stores/${Number(outletId)}`, { period }),
-  employees: ({ outlets, search, page, size, sort, period } = {}) => get("/stock-audit/employees", { outlet_id: one(outlets), search: search || undefined, page, size, sort, period }),
+  employees: ({ outlets, search, page, size, sort, period, mapped } = {}) => get("/stock-audit/employees", { outlet_id: one(outlets), search: search || undefined, page, size, sort, period, mapped: mapped === true ? "true" : mapped === false ? "false" : undefined }),
   employee: ({ rpUserId, period }) => get(`/stock-audit/employees/${encodeURIComponent(rpUserId)}`, { period }),
   my: ({ period } = {}) => get("/stock-audit/my", { period }),
   articles: ({ rpUserId, page, size, period, self = false }) =>
@@ -55,6 +55,7 @@ export const apiAdapter = {
   roles: ({ period } = {}) => get("/stock-audit/roles", { period }),
   assignRole: (body) => send("put", "/stock-audit/roles", body),
   settingsView: () => get("/stock-audit/settings"),
+  updateSettings: (body) => send("put", "/stock-audit/settings", body),
   createCycle: (body) => send("post", "/stock-audit/cycles", body),
   hrReport: ({ date, period } = {}) => get("/stock-audit/hr/report", { date, period }),
 };
