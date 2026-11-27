@@ -83,14 +83,14 @@ export function VarianceReport() {
   const s = useLoad(() => adapter.variances({ state: dataState, outletId: outlet ? Number(outlet) : null, kind: kind || null, page, size: 15 }), [dataState, outlet, kind, page]);
   const st = useLoad(() => adapter.stores({ state: dataState, outlets: outlet ? [Number(outlet)] : scope }), [dataState, outlet]);
   return (
-    <Screen title="Stock Shortage & Excess Report" subtitle="Variances booked by RetailPilot audits, for investigation and closure. Shortage values never reduce anyone's incentive.">
+    <Screen title="Stock Shortage & Excess Report" subtitle="Shortages and excess booked by RetailPilot audits, for management review only. They never affect incentives or Premier League rankings.">
       <Loader s={st}>
         {(stores) => (
           <StatGrid cols={{ base: 2, md: 4 }}>
             <StatCard label="Shortage value" c={stores.reduce((t, x) => t + x.shortage_value, 0)} kind="money" accent="red.400" sub={`${fmtNum(stores.reduce((t, x) => t + x.shortage_qty, 0))} units`} />
             <StatCard label="Excess value" c={stores.reduce((t, x) => t + x.excess_value, 0)} kind="money" accent="green.400" sub={`${fmtNum(stores.reduce((t, x) => t + x.excess_qty, 0))} units`} />
-            <StatCard label="Open / investigating" c={stores.reduce((t, x) => t + x.variance_open, 0)} />
-            <StatCard label="Closed" c={stores.reduce((t, x) => t + x.variance_closed, 0)} />
+            <StatCard label="Net variance" c={stores.reduce((t, x) => t + x.excess_value - x.shortage_value, 0)} kind="money" />
+            <StatCard label="Used for incentives / SAPL" c="No - review only" kind="raw" />
           </StatGrid>
         )}
       </Loader>
@@ -103,12 +103,6 @@ export function VarianceReport() {
         {(d) => (
           <DataList
             rows={d.rows} page={d.page} pages={d.pages} total={d.total} onPage={setPage} keyOf={(r, i) => `${r.article}-${r.store}-${i}`}
-            renderDetail={(r) => (can(P.VARIANCE) ? (
-              <Stack direction={{ base: "column", md: "row" }}>
-                <PreviewButton colorScheme="purple" label="Mark investigating">Investigating</PreviewButton>
-                <PreviewButton variant="outline" label="Close with reason">Close with reason</PreviewButton>
-              </Stack>
-            ) : <Text fontSize="xs" color="gray.500">Variance review needs the variance review permission.</Text>)}
             columns={[
               { key: "article", label: "Article", primary: true },
               { key: "store", label: "Branch", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.store} · {r.category}</Text> },
@@ -117,8 +111,6 @@ export function VarianceReport() {
               { key: "kind", label: "Type", render: (r) => (r.kind === "Short" ? "Shortage" : "Excess") },
               { key: "by", label: "Counted by", render: (r) => r.counted_by },
               { key: "at", label: "Audited", render: (r) => fmtDateTime(r.audited_at) },
-              { key: "status", label: "Status", render: (r) => <Pill color={r.status === "CLOSED" ? "green" : r.status === "INVESTIGATING" ? "orange" : "red"}>{r.status.toLowerCase()}</Pill> },
-              { key: "reason", label: "Reason", render: (r) => r.reason || "—" },
             ]}
           />
         )}

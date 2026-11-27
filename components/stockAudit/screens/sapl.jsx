@@ -18,10 +18,10 @@ function SeasonHeader() {
     <Box borderRadius="xl" p={{ base: 4, md: 5 }} mb={4} color="white" bg={`linear-gradient(120deg, ${BRAND.purple} 0%, #4B1D5E 60%, ${BRAND.orange} 140%)`} position="relative" overflow="hidden">
       <Text fontSize="xs" letterSpacing="0.2em" opacity={0.85}>DNDS STOCK AUDIT PREMIER LEAGUE</Text>
       <Heading size="lg" mt={1}>SAPL Season 1</Heading>
-      <Text fontSize="sm" opacity={0.9} mt={1}>From 25 Nov 2026 · end date to be decided · five retail stores</Text>
+      <Text fontSize="sm" opacity={0.9} mt={1}>Q4 2026 Full Audit · from 25 Nov 2026 · common audit deadline 05 Dec 2026 · five retail stores</Text>
       <Flex mt={3} gap={2} wrap="wrap" align="center">
         <Badge bg="yellow.300" color="yellow.900" fontSize="0.85em" px={2} py={1} borderRadius="md">🏆 Championship prize ₹10,000</Badge>
-        <Badge bg="whiteAlpha.300" color="white" px={2} py={1} borderRadius="md">PROVISIONAL STANDINGS</Badge>
+        <Badge bg="whiteAlpha.300" color="white" px={2} py={1} borderRadius="md">DAILY PROVISIONAL STANDINGS · 27 NOV 2026</Badge>
       </Flex>
       <Text position="absolute" right={{ base: 2, md: 6 }} top={{ base: 2, md: 3 }} fontSize={{ base: "48px", md: "72px" }} opacity={0.25}>🏆</Text>
     </Box>
@@ -33,7 +33,7 @@ export function Leaderboard() {
   const s = useLoad(() => adapter.standings({ state: dataState }), [dataState]);
   if (!can(P.SAPL_VIEW)) return <Screen title="Premier League Leaderboard"><NoAccess what="the leaderboard" /></Screen>;
   return (
-    <Screen title="Premier League Leaderboard" subtitle="Ranked on comparable percentages, not article counts. Proposed scoring - not final." actions={<Freshness />}>
+    <Screen title="Premier League Leaderboard" subtitle="Completion 35 · Accuracy 40 · Recounts 20 · Participation 5 = 100 points, on comparable percentages. Shortage and excess never score." actions={<Freshness />}>
       <SeasonHeader />
       <Loader s={s}>
         {(rows) => {
@@ -80,7 +80,7 @@ export function Leaderboard() {
                   );
                 })}
               </Stack>
-              <Text fontSize="xs" color="gray.500" mt={3}>Prize eligibility: not decided until the season ends and management approves the final standings. Qualification criteria and tie-breakers are pending your review.</Text>
+              <Text fontSize="xs" color="gray.500" mt={3}>Standings are provisional and recalculated daily. They become final only after the season's required independent verification is complete and management approves them; then the winning store's prize eligibility is decided. Qualification criteria and tie-breakers are pending your review.</Text>
             </>
           );
         }}
@@ -133,26 +133,29 @@ export function StorePoints() {
 export function SeasonMaster() {
   const { can } = useStockAudit();
   const s = useLoad(() => adapter.seasons(), []);
+  const [deadline, setDeadline] = useState("2026-12-05");
   return (
-    <Screen title="Competition Season Master" actions={can(P.SAPL_MANAGE) ? <PreviewButton colorScheme="purple" label="New season">New season</PreviewButton> : null}>
+    <Screen title="Competition Season Master" subtitle="One complete stock audit cycle is one season. Every season starts with fresh points." actions={can(P.SAPL_MANAGE) ? <PreviewButton colorScheme="purple" label="New season">New season</PreviewButton> : null}>
       <Loader s={s}>
         {(rows) => rows.map((x) => (
-          <Section key={x.season_no} title={`Season ${x.season_no} · ${x.name}`} subtitle="Dates, cycles, stores and scoring stay configurable until you approve them">
+          <Section key={x.season_no} title={`Season ${x.season_no} · ${x.name}`} subtitle="Duration and prize distribution are pending management approval">
             <SimpleGrid columns={{ base: 1, md: 2 }} spacingX={6}>
               <Box>
+                <KV k="Audit cycle" v="Q4 2026 Full Audit" />
                 <KV k="Start" v={fmtDate(x.start)} />
-                <KV k="End" v={x.end ? fmtDate(x.end) : <Pill color="orange">to be decided</Pill>} />
-                <KV k="Audit cycles" v="Q4 2026 Full Audit" />
-                <KV k="Participating stores" v={`${x.stores.length}: ${D.STORES.map((s) => s.name).join(", ")}`} />
-                <KV k="Prize" v={fmtMoney(x.prize)} />
+                <KV k="Common audit deadline (all five stores)" v={<Input type="date" size="sm" h="38px" w="170px" value={deadline} onChange={(e) => setDeadline(e.target.value)} isDisabled={!can(P.SAPL_MANAGE)} />} />
+                <KV k="Season end" v={<Pill color="orange">pending approval</Pill>} />
+                <KV k="Participating stores" v={`${x.stores.length}: ${D.STORES.map((st) => st.name).join(", ")}`} />
+                <KV k="Prize" v={`${fmtMoney(x.prize)} to the winning store`} />
               </Box>
               <Box>
-                <KV k="Scoring policy" v={x.scoring} />
-                <KV k="Qualification" v={<Pill color="orange">{x.qualification}</Pill>} />
+                <KV k="Scoring" v={x.scoring} />
+                <KV k="Standings" v="Provisional, recalculated daily" />
+                <KV k="Final ranking" v="After required independent verification + management approval" />
+                <KV k="Qualification / tie-breakers" v={<Pill color="orange">{x.qualification}</Pill>} />
                 <KV k="Status" v={<Pill color="green">in progress</Pill>} />
                 <KV k="Winning store" v={<Cell c={{ status: "PENDING", reason: "NOT_APPROVED" }} />} />
-                <KV k="Final approval" v={<Pill color="gray">not started</Pill>} />
-                <KV k="Prize distribution" v={<Pill color="gray">not started</Pill>} />
+                <KV k="Prize distribution" v={<Pill color="gray">method pending approval</Pill>} />
               </Box>
             </SimpleGrid>
           </Section>
@@ -163,24 +166,31 @@ export function SeasonMaster() {
 }
 
 export function ScoringSettings() {
-  const { dataState, can } = useStockAudit();
-  const [w, setW] = useState(SAPL_DEFAULT_WEIGHTS.map((x) => ({ ...x })));
-  const totalMax = w.reduce((t, x) => t + (Number(x.max) || 0), 0);
-  const s = useLoad(() => adapter.standings({ state: dataState, weights: w }), [dataState, JSON.stringify(w)]);
+  const { dataState } = useStockAudit();
+  const w = SAPL_DEFAULT_WEIGHTS;
+  const s = useLoad(() => adapter.standings({ state: dataState, weights: w }), [dataState]);
   return (
-    <Screen title="Competition Scoring Settings" subtitle="Proposed 100-point scoring for your review. Weights, qualification and tie-breakers are NOT final.">
-      <Section title="Weights" actions={can(P.SAPL_MANAGE) ? <PreviewButton colorScheme="purple" label="Save scoring draft" isDisabled={totalMax !== 100}>Save draft</PreviewButton> : null}>
-        <Stack spacing={3}>
-          {w.map((x, i) => (
-            <Flex key={x.key} align="center" gap={3}>
-              <Text flex="1" fontSize="sm">{x.label}</Text>
-              <NumberInput size="sm" w="90px" value={x.max} min={0} max={100} onChange={(v) => setW(w.map((y, j) => (j === i ? { ...y, max: Number(v) || 0 } : y)))}><NumberInputField h="40px" /></NumberInput>
+    <Screen title="Competition Scoring Settings" subtitle="Scoring confirmed on 27 Nov 2026. Each KPI scores its percentage of the maximum points; missing data stays Pending, never zero or full.">
+      <Section title="Points (confirmed)">
+        <Stack spacing={2}>
+          {w.map((x) => (
+            <Flex key={x.key} justify="space-between" align="center" p={2} bg="purple.50" borderRadius="md" fontSize="sm">
+              <Text>{x.label}</Text><Text fontWeight={700}>{x.max} points</Text>
             </Flex>
           ))}
-          <Text fontSize="sm" fontWeight={700} color={totalMax === 100 ? "green.600" : "red.600"}>Total {totalMax} / 100{totalMax !== 100 ? " - must be 100" : ""}</Text>
+          <Flex justify="space-between" p={2} fontWeight={700} color="green.700"><Text>Total</Text><Text>{w.reduce((t, x) => t + x.max, 0)} points</Text></Flex>
+        </Stack>
+        <Text fontSize="xs" color="gray.500" mt={2}>Variance closure is not scored (RetailPilot has no closure data). Shortage and excess values never affect points or rankings.</Text>
+      </Section>
+      <Section title="How each KPI is measured">
+        <Stack fontSize="sm" spacing={1}>
+          <Text>• Audit completion: audited ÷ allotted (Effective = Y, imported CSVs)</Text>
+          <Text>• Physical counting accuracy: correct ÷ verified independent random recounts</Text>
+          <Text>• Independent recount completion: recounts done ÷ the 5% required</Text>
+          <Text>• Employee participation: employees who audited ÷ eligible employees</Text>
         </Stack>
       </Section>
-      <Section title="Preview standings with these weights">
+      <Section title="Today's provisional standings">
         <Loader s={s}>
           {(rows) => (
             <DataList rows={rows} keyOf={(r) => r.store.outlet_id} columns={[
@@ -193,9 +203,9 @@ export function ScoringSettings() {
       </Section>
       <Section title="Still to decide">
         <Stack fontSize="sm" spacing={1}>
-          <Text>• Minimum qualification (e.g. completion and recount coverage before a store can win)</Text>
-          <Text>• Tie-breaker order (e.g. accuracy, then recount completion)</Text>
-          <Text>• Season duration and which audit cycles count</Text>
+          <Text>• Minimum qualification before a store can win</Text>
+          <Text>• Tie-breaker order</Text>
+          <Text>• Season duration and the prize distribution method</Text>
         </Stack>
       </Section>
     </Screen>

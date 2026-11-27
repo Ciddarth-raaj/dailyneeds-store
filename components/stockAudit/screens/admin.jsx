@@ -183,7 +183,6 @@ export function PolicySettings() {
           <Box><Text fontSize="xs" mb={1}>Movement ambiguity window (seconds)</Text><NumberInput size="sm" defaultValue={120} min={0}><NumberInputField h="40px" /></NumberInput></Box>
           <Box><Text fontSize="xs" mb={1}>Match tolerance (units)</Text><NumberInput size="sm" defaultValue={0} min={0} step={0.001}><NumberInputField h="40px" /></NumberInput></Box>
           <Box><Text fontSize="xs" mb={1}>Supervisor accuracy threshold (%)</Text><NumberInput size="sm" defaultValue={97}><NumberInputField h="40px" /></NumberInput></Box>
-          <Box><Text fontSize="xs" mb={1}>Variance closure window (days)</Text><NumberInput size="sm" defaultValue={7}><NumberInputField h="40px" /></NumberInput></Box>
           <Box><Text fontSize="xs" mb={1}>Partial management payout</Text>
             <Select size="sm" h="40px" defaultValue="threshold"><option value="threshold">All or nothing per KPI (threshold)</option><option value="linear">Proportional to achievement</option><option value="slabs">Slabs</option></Select>
           </Box>

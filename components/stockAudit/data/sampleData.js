@@ -159,8 +159,6 @@ export function storeView(st, state) {
   const r = rng(st.outlet_id * 13);
   const shortageQty = Math.round(audited * (0.011 + r() * 0.01));
   const excessQty = Math.round(audited * (0.006 + r() * 0.008));
-  const varianceCases = Math.round(audited * 0.035);
-  const closed = Math.round(varianceCases * (0.35 + r() * 0.5));
   const participating = list.filter((e) => e.audited > 0).length;
   return {
     ...st,
@@ -181,9 +179,6 @@ export function storeView(st, state) {
     shortage_value: Math.round(shortageQty * (38 + r() * 20)),
     excess_qty: excessQty,
     excess_value: Math.round(excessQty * (30 + r() * 18)),
-    variance_open: varianceCases - closed,
-    variance_closed: closed,
-    variance_closure: varianceCases ? available((closed * 100) / varianceCases) : notApplicable("NO_VARIANCES"),
     estimated_employee: list.reduce((t, e) => t + (known(e.estimated) ? e.estimated.value : 0), 0),
     estimated_employee_pending: list.filter((e) => !known(e.estimated)).length,
     independent_verification: st.outlet_id === 6 ? null : true,
@@ -196,12 +191,13 @@ export function stores(state, outletIds = null) {
 
 export function management(state) {
   return stores(state).map((s) => {
-    const thresholds = { employee_counting_accuracy: 97, independent_recount_verification: 100, verification_quality_control: 95, stock_variance_investigation_closure: 100, completion_within_deadline: 100 };
-    const completion = known(s.completion) ? available(s.completion.value) : unavailable("ALLOTMENT_UNAVAILABLE");
+    const thresholds = { employee_counting_accuracy: 97, independent_recount_verification: 100, verification_quality_control: 95, completion_within_deadline: 100 };
+    // Completion WITHIN DEADLINE can only be judged once the deadline has passed.
+    const completion = !known(s.completion) ? unavailable("ALLOTMENT_UNAVAILABLE") : TODAY <= CYCLES[0].deadline ? pending("BEFORE_DEADLINE") : available(s.completion.value);
     const sampleMet = s.employees.length ? available((s.employees.filter((e) => e.sample.met).length * 100) / s.employees.length) : notApplicable("NO_ARTICLES");
     const resolvedPct = s.recount_done ? available(100 - (sum(s.employees, (e) => e.unresolved) * 100) / s.recount_done) : pending("PENDING_VERIFICATION");
     const sup = roleIncentive("SUPERVISOR", { completion_within_deadline: completion, employee_counting_accuracy: s.accuracy, independent_recount_verification: sampleMet }, thresholds);
-    const sm = roleIncentive("STORE_MANAGER", { completion_within_deadline: completion, employee_counting_accuracy: s.accuracy, verification_quality_control: resolvedPct, stock_variance_investigation_closure: s.variance_closure }, thresholds);
+    const sm = roleIncentive("STORE_MANAGER", { completion_within_deadline: completion, employee_counting_accuracy: s.accuracy, verification_quality_control: resolvedPct }, thresholds);
     return {
       store: s,
       supervisor: { name: `${FIRST[(s.outlet_id * 5) % FIRST.length]} S`, ...sup },
@@ -212,15 +208,19 @@ export function management(state) {
 }
 
 // ------------------------------------------------------------------ SAPL
+/** The four scored KPIs of a store. Shortage / excess are deliberately NOT inputs. */
+export function saplKpisOf(s) {
+  return {
+    completion: s.completion,
+    accuracy: s.accuracy,
+    recount: s.recount_progress,
+    participation: s.eligible_employees ? available((s.participating * 100) / s.eligible_employees) : notApplicable("NO_DATA"),
+  };
+}
+
 export function saplStandings(state, weights = SAPL_DEFAULT_WEIGHTS) {
   const list = stores(state).map((s) => {
-    const kpis = {
-      completion: s.completion,
-      accuracy: s.accuracy,
-      recount: s.recount_progress,
-      variance: s.variance_closure,
-      participation: s.eligible_employees ? available((s.participating * 100) / s.eligible_employees) : notApplicable("NO_DATA"),
-    };
+    const kpis = saplKpisOf(s);
     return { store: s, kpis, ...saplPoints(kpis, weights) };
   });
   const ranked = [...list].sort((a, b) => b.total - a.total || a.store.name.localeCompare(b.store.name));
@@ -228,8 +228,9 @@ export function saplStandings(state, weights = SAPL_DEFAULT_WEIGHTS) {
   return ranked.map((r, i) => ({ ...r, rank: i + 1, previous_rank: prev[r.store.outlet_id], provisional: true, comparable: r.complete }));
 }
 
+/** One complete audit cycle = one season (preview). Each season starts with fresh points. */
 export const SEASONS = [
-  { season_no: 1, name: "SAPL Season 1", start: "2026-11-25", end: null, cycles: [101], stores: STORES.map((s) => s.outlet_id), prize: SAPL_PRIZE, scoring: "Proposed v0 (not approved)", qualification: "Pending your review", status: "IN_PROGRESS", winner: null, approval: "NOT_STARTED", distribution: "NOT_STARTED" },
+  { season_no: 1, name: "SAPL Season 1", start: "2026-11-25", deadline: "2026-12-05", end: null, cycles: [101], stores: STORES.map((s) => s.outlet_id), prize: SAPL_PRIZE, scoring: "35 / 40 / 20 / 5 (confirmed 27 Nov 2026)", qualification: "Pending your review", status: "IN_PROGRESS", winner: null, approval: "NOT_STARTED", distribution: "NOT_STARTED" },
 ];
 
 // ------------------------------------------------------------------ articles (drilldown)
@@ -299,14 +300,11 @@ export function variances(state, { outletId = null, kind = null, page = 1, size 
       const short = r() < 0.62;
       const qty = Math.ceil(r() * (short ? 6 : 4));
       const cost = 18 + Math.round(r() * 260);
-      const closed = i < n * 0.55;
       list.push({
         store: s.name, outlet_id: s.outlet_id, article: ARTICLES[i % ARTICLES.length][0], category: ARTICLES[i % ARTICLES.length][1],
         kind: short ? "Short" : "Over", qty: short ? -qty : qty, value: (short ? -1 : 1) * qty * cost,
         counted_by: s.employees[i % s.employees.length].name || s.employees[i % s.employees.length].rp_name,
         audited_at: `2026-11-${25 + (i % 3)}T1${i % 9}:15:00+05:30`,
-        status: closed ? "CLOSED" : i % 3 === 0 ? "INVESTIGATING" : "OPEN",
-        reason: closed ? ["Billing error", "Mis-shelved", "Damaged", "Theft suspected", "Receiving error"][i % 5] : null,
       });
     }
   });
@@ -351,9 +349,9 @@ export const POLICY_VERSIONS = [
 ];
 
 export const ALLOTMENT_UPLOADS = [
-  { upload_id: 3, cycle: "Q4 2026 Full Audit", store: "ECR", file: "ECR_allotment_rev2.xlsx", revision: 2, mode: "Corrections only", rows: 412, added: 37, removed: 0, reassigned: 52, unchanged: 323, status: "Preview only", at: "2026-11-27T10:12:00+05:30", by: "HR (sample)" },
-  { upload_id: 2, cycle: "Q4 2026 Full Audit", store: "ECR", file: "ECR_allotment.xlsx", revision: 1, mode: "Complete allotment", rows: 15040, added: 15040, removed: 0, reassigned: 0, unchanged: 0, status: "Preview only", at: "2026-11-25T09:40:00+05:30", by: "HR (sample)" },
-  { upload_id: 1, cycle: "Q4 2026 Full Audit", store: "Moolakulam", file: "MLK_allotment.xlsx", revision: 1, mode: "Complete allotment", rows: 16480, added: 16480, removed: 0, reassigned: 0, unchanged: 0, status: "Preview only", at: "2026-11-25T09:10:00+05:30", by: "HR (sample)" },
+  { upload_id: 3, cycle: "Q4 2026 Full Audit", file: "13 files · bulk upload", stores: "ECR, Moolakulam, Muthialpet", files: 13, imported: 8, revisions: 1, already: 1, rejected: 4, auditable: 486, not_auditable: 211, status: "Preview only", at: "2026-11-27T10:12:00+05:30", by: "HR (sample)" },
+  { upload_id: 2, cycle: "Q4 2026 Full Audit", file: "assortment-effective-anbu-s.csv", stores: "Moolakulam", files: 1, imported: 1, revisions: 1, already: 0, rejected: 0, auditable: 52, not_auditable: 8, status: "Preview only", at: "2026-11-26T18:40:00+05:30", by: "HR (sample)" },
+  { upload_id: 1, cycle: "Q4 2026 Full Audit", file: "41 files · bulk upload", stores: "Muthialpet, Vallalar Salai", files: 41, imported: 41, revisions: 0, already: 0, rejected: 0, auditable: 20340, not_auditable: 9120, status: "Preview only", at: "2026-11-25T09:40:00+05:30", by: "HR (sample)" },
 ];
 
 export { SAPL_DEFAULT_WEIGHTS, SAPL_PRIZE };

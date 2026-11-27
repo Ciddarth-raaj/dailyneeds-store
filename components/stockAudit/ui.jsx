@@ -62,7 +62,7 @@ export function SampleBanner({ note }) {
     <Flex bg={BRAND.orangeSoft} border="1px solid" borderColor="orange.200" borderRadius="md" px={3} py={2} mb={3} align="center" gap={2} wrap="wrap">
       <Badge bg={BRAND.orange} color="white">SAMPLE DATA</Badge>
       <Text fontSize="xs" color="gray.700" flex="1" minW="200px">
-        {note || "Preview with realistic sample data. Not RetailPilot data, not an Excel import. Nothing on this screen is saved, approved or paid."}
+        {note || "Preview with realistic sample data. Not RetailPilot data, not an allotment import. Nothing on this screen is saved, approved or paid."}
       </Text>
     </Flex>
   );

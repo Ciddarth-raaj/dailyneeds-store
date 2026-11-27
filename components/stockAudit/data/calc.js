@@ -28,7 +28,6 @@ export const REASON_LABEL = {
   PENDING_ELIGIBILITY_REVIEW: "Eligibility review pending",
   POLICY_NOT_APPROVED: "Policy not approved",
   NO_ARTICLES: "No articles audited",
-  NO_VARIANCES: "No variance cases",
   NO_DATA: "Data not in yet",
   COMPONENT_PENDING: "Some KPIs pending",
   INDEPENDENT_VERIFICATION_PENDING: "Independent verification pending",
@@ -36,6 +35,7 @@ export const REASON_LABEL = {
   RECOUNT_DATA_PENDING: "Recount data from RetailPilot pending",
   NOT_APPROVED: "Not approved yet",
   HISTORY_UNAVAILABLE: "Historical figures not reconstructable",
+  BEFORE_DEADLINE: "Audit deadline not reached yet",
 };
 
 /** Confirmed 27 Nov 2026. */
@@ -60,10 +60,9 @@ export const MANAGEMENT = {
     title: "Store Manager",
     max: 1500,
     components: [
-      { key: "completion_within_deadline", label: "Audit completion within deadline", max: 500 },
-      { key: "employee_counting_accuracy", label: "Overall employee counting accuracy", max: 400 },
-      { key: "verification_quality_control", label: "Verification quality control", max: 200 },
-      { key: "stock_variance_investigation_closure", label: "Stock variance investigation and closure", max: 400 },
+      { key: "completion_within_deadline", label: "Audit completion within deadline", max: 600 },
+      { key: "employee_counting_accuracy", label: "Employee counting accuracy", max: 500 },
+      { key: "verification_quality_control", label: "Verification quality control", max: 400 },
     ],
   },
   OPERATIONS_MANAGER: {
@@ -137,12 +136,11 @@ export function omStoreAmount(score, independentVerification) {
 export const PROGRAMME_START = "2026-11-25T00:00:00+05:30";
 export const SAPL_PRIZE = 10000;
 
-/** Proposed SAPL scoring (NOT final - for UI review). */
+/** SAPL scoring, confirmed 27 Nov 2026: 100 points. Shortage / excess never score. */
 export const SAPL_DEFAULT_WEIGHTS = [
-  { key: "completion", label: "Stock audit completion", max: 30 },
+  { key: "completion", label: "Audit completion", max: 35 },
   { key: "accuracy", label: "Physical counting accuracy", max: 40 },
-  { key: "recount", label: "Independent recount completion", max: 15 },
-  { key: "variance", label: "Variance investigation and closure", max: 10 },
+  { key: "recount", label: "Independent recount completion", max: 20 },
   { key: "participation", label: "Employee participation", max: 5 },
 ];
 

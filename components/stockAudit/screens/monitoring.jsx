@@ -47,9 +47,9 @@ export function CompanyDashboard() {
                 <StatCard label="Counting accuracy" kind="pct" c={matchedPctCell} accent={BRAND.orange} />
               </StatGrid>
               <StatGrid cols={{ base: 2, md: 4 }}>
-                <StatCard label="Shortage" c={total(stores, (x) => x.shortage_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.shortage_qty))} units`} accent="red.400" />
-                <StatCard label="Excess" c={total(stores, (x) => x.excess_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.excess_qty))} units`} accent="green.400" />
-                <StatCard label="Variance cases open" c={total(stores, (x) => x.variance_open)} sub={`${fmtNum(total(stores, (x) => x.variance_closed))} closed`} />
+                <StatCard label="Shortage (review only)" c={total(stores, (x) => x.shortage_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.shortage_qty))} units`} accent="red.400" />
+                <StatCard label="Excess (review only)" c={total(stores, (x) => x.excess_value)} kind="money" sub={`${fmtNum(total(stores, (x) => x.excess_qty))} units`} accent="green.400" />
+                <StatCard label="Net variance (review only)" c={total(stores, (x) => x.excess_value - x.shortage_value)} kind="money" sub="Not used for incentives or rankings" />
                 <StatCard label="Estimated employee incentives" c={total(stores, (x) => x.estimated_employee)} kind="money" sub={`${total(stores, (x) => x.estimated_employee_pending)} employees still pending`} />
                 <StatCard label="Estimated management incentives" c={mgmtDecided} kind="money" sub="Decided KPIs only; others pending" />
                 <StatCard label="Approved incentives" c={pending("NOT_APPROVED")} kind="money" />
@@ -106,7 +106,7 @@ export function StoreDashboard() {
               <StatCard label="Recounts" c={st.recount_done} sub={`of ${fmtNum(st.recount_required)} required`} />
               <StatCard label="Shortage value" c={st.shortage_value} kind="money" accent="red.400" />
               <StatCard label="Excess value" c={st.excess_value} kind="money" accent="green.400" />
-              <StatCard label="Variance open / closed" c={`${st.variance_open} / ${st.variance_closed}`} kind="raw" />
+              <StatCard label="Recount progress" c={st.recount_progress} kind="pct" />
               <StatCard label="Employees participating" c={`${st.participating} of ${st.eligible_employees}`} kind="raw" />
               <StatCard label="Estimated employee incentives" c={st.estimated_employee} kind="money" />
             </StatGrid>

@@ -17,7 +17,7 @@ export function AllotmentReport() {
     <Screen
       title="Article Allotment Report"
       subtitle="Read-only. Allotment is done in RetailPilot and imported here; DNDS never creates or edits an allotment."
-      actions={<Button size="sm" colorScheme="purple" onClick={() => go("import")}>Import allotment Excel</Button>}
+      actions={<Button size="sm" colorScheme="purple" onClick={() => go("import")}>Import allotment CSVs</Button>}
     >
       {dataState !== "allotment" ? (
         <Box p={3} mb={3} bg="gray.50" borderRadius="md" fontSize="sm">No allotment imported for this cycle yet: allotted, pending and completion stay <b>Unavailable</b>. Actual audits are shown.</Box>
@@ -229,23 +229,24 @@ export const ImportValidation = () => <AllotmentImport startAt={3} />;
 export function AllotmentHistory() {
   const s = useLoad(() => adapter.allotmentUploads(), []);
   return (
-    <Screen title="Excel Upload & Allotment Revision History" subtitle="Every upload is kept with its original file. Revisions never delete audit history." back={{ label: "Allotment report", path: "allotment" }}>
+    <Screen title="Upload & Allotment Revision History" subtitle="Every bulk upload is kept with its original CSV files. A corrected file becomes that auditor's next revision; audit history is never deleted." back={{ label: "Allotment report", path: "allotment" }}>
       <Loader s={s}>
         {(rows) => (
           <DataList
             rows={rows} keyOf={(r) => r.upload_id}
             columns={[
-              { key: "file", label: "File", primary: true, render: (r) => <span>{r.file}</span> },
-              { key: "store", label: "Branch", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.store} · revision {r.revision}</Text> },
+              { key: "file", label: "Upload", primary: true, render: (r) => <span>{r.file}</span> },
+              { key: "stores", label: "Stores", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.stores} · {fmtDateTime(r.at)}</Text> },
               { key: "status", label: "Status", mobileRight: true, render: (r) => <Pill color="orange">{r.status}</Pill> },
-              { key: "mode", label: "Mode", render: (r) => r.mode },
-              { key: "rows", label: "Rows", numeric: true, render: (r) => fmtNum(r.rows) },
-              { key: "added", label: "Added", numeric: true, render: (r) => fmtNum(r.added) },
-              { key: "reassigned", label: "Reassigned", numeric: true, render: (r) => fmtNum(r.reassigned) },
-              { key: "removed", label: "Removed", numeric: true, render: (r) => fmtNum(r.removed) },
-              { key: "unchanged", label: "Unchanged", numeric: true, render: (r) => fmtNum(r.unchanged) },
-              { key: "at", label: "Uploaded", render: (r) => `${fmtDateTime(r.at)} · ${r.by}` },
-              { key: "file_dl", label: "Original file", render: () => <PreviewButton size="xs" variant="link" colorScheme="purple" label="Download original">Download</PreviewButton> },
+              { key: "files", label: "Files", numeric: true, render: (r) => fmtNum(r.files) },
+              { key: "imported", label: "Imported", numeric: true, render: (r) => fmtNum(r.imported) },
+              { key: "revisions", label: "Corrected (new revision)", numeric: true, render: (r) => fmtNum(r.revisions) },
+              { key: "already", label: "Already imported", numeric: true, render: (r) => fmtNum(r.already) },
+              { key: "rejected", label: "Rejected", numeric: true, render: (r) => fmtNum(r.rejected) },
+              { key: "auditable", label: "Auditable (Y)", numeric: true, render: (r) => fmtNum(r.auditable) },
+              { key: "na", label: "Not auditable (N)", numeric: true, render: (r) => fmtNum(r.not_auditable) },
+              { key: "by", label: "By", render: (r) => r.by },
+              { key: "orig", label: "Original files", render: () => <PreviewButton size="xs" variant="link" colorScheme="purple" label="Download original files">Download</PreviewButton> },
             ]}
           />
         )}

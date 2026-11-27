@@ -1,6 +1,7 @@
 import { P } from "./permissions";
 import { CompanyDashboard, StoreDashboard, EmployeePerformance, MyStockAudit, ArticleAuditDetails } from "./screens/monitoring";
-import { AllotmentReport, AllotmentImport, ImportValidation, AllotmentHistory } from "./screens/allotment";
+import { AllotmentReport, AllotmentHistory } from "./screens/allotment";
+import { BulkAllotmentImport, BulkImportValidation } from "./screens/bulkImport";
 import { RecountVerification, VarianceReport } from "./screens/verification";
 import { CycleMaster, EmployeeMapping, SyncReport, PolicySettings } from "./screens/admin";
 import { EmployeeIncentives, SupervisorKpi, StoreManagerKpi, OperationsManagerKpi, CalculationPreview, Approvals, IncentiveHistory } from "./screens/incentives";
@@ -14,8 +15,8 @@ export const SCREENS = [
   { no: 3, path: "employees", group: "Monitoring", title: "Employee-wise Performance", perm: P.STORE, C: EmployeePerformance },
   { no: 4, path: "my", group: "Monitoring", title: "My Stock Audit", perm: P.OWN, C: MyStockAudit },
   { no: 5, path: "allotment", group: "Allotment", title: "Article Allotment Report", perm: P.STORE, C: AllotmentReport },
-  { no: 6, path: "import", group: "Allotment", title: "Allotment Excel Import", perm: P.IMPORT, C: AllotmentImport },
-  { no: 7, path: "import-validation", group: "Allotment", title: "Import Dry Run & Validation", perm: P.IMPORT, C: ImportValidation },
+  { no: 6, path: "import", group: "Allotment", title: "Allotment Import (bulk CSV)", perm: P.IMPORT, C: BulkAllotmentImport },
+  { no: 7, path: "import-validation", group: "Allotment", title: "Import Validation", perm: P.IMPORT, C: BulkImportValidation },
   { no: 8, path: "allotment-history", group: "Allotment", title: "Upload & Revision History", perm: P.IMPORT, C: AllotmentHistory },
   { no: 9, path: "articles", group: "Monitoring", title: "Article-wise Audit Details", perm: [P.STORE, P.OWN], C: ArticleAuditDetails },
   { no: 10, path: "verification", group: "Monitoring", title: "Recount & Verification", perm: P.STORE, C: RecountVerification },
