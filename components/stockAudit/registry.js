@@ -3,7 +3,7 @@ import { CompanyDashboard, StoreDashboard, EmployeePerformance, MyStockAudit, Ar
 import { AllotmentReport, AllotmentHistory } from "./screens/allotment";
 import { BulkAllotmentImport, BulkImportValidation } from "./screens/bulkImport";
 import { RecountVerification, VarianceReport } from "./screens/verification";
-import { CycleMaster, EmployeeMapping, SyncReport, PolicySettings } from "./screens/admin";
+import { CycleMaster, EmployeeMapping, SyncReport, PolicySettings, EligibleHeadcount, ResponsiblePersons } from "./screens/admin";
 import { EmployeeIncentives, SupervisorKpi, StoreManagerKpi, OperationsManagerKpi, CalculationPreview, Approvals, IncentiveHistory } from "./screens/incentives";
 import { Leaderboard, StorePoints, SeasonMaster, ScoringSettings, PrizeDistribution, CompetitionHistory } from "./screens/sapl";
 import { HrDownload, ConsolidatedPdfPreview, StorePdfPreview } from "./screens/hr";
@@ -41,6 +41,8 @@ export const SCREENS = [
   { no: 29, path: "hr-reports", group: "HR Reports", title: "HR Daily PDF Download", perm: P.HR_PDF, C: HrDownload },
   { no: 30, path: "hr-pdf-all", group: "HR Reports", title: "Consolidated PDF Preview", perm: P.HR_PDF, C: ConsolidatedPdfPreview },
   { no: 31, path: "hr-pdf-store", group: "HR Reports", title: "Store PDF Preview", perm: P.HR_PDF, C: StorePdfPreview },
+  { no: 32, path: "eligibility", group: "Administration", title: "Eligible Headcount & Exclusions", perm: [P.CYCLES, P.EXCLUSIONS_APPROVE, P.STORE, P.COMPANY], C: EligibleHeadcount },
+  { no: 33, path: "roles", group: "Administration", title: "Responsible Persons", perm: [P.ROLES, P.STORE, P.COMPANY], C: ResponsiblePersons },
 ];
 
 export const GROUPS = ["Monitoring", "Allotment", "Incentives", "Premier League", "HR Reports", "Administration"];

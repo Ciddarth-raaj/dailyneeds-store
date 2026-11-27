@@ -48,6 +48,13 @@ export const apiAdapter = {
   mappingEmployees: () => get("/stock-audit/mapping/employees"),
   setMapping: (rpUserId, employeeId) => send("put", `/stock-audit/mapping/${encodeURIComponent(rpUserId)}`, { employee_id: employeeId }),
   cycles: () => get("/stock-audit/cycles"),
+  eligibility: ({ period } = {}) => get("/stock-audit/eligibility", { period }),
+  takeSnapshot: (outletId) => send("post", `/stock-audit/eligibility/${outletId}/snapshot`),
+  requestExclusion: (outletId, employeeId, reason) => send("post", `/stock-audit/eligibility/${outletId}/exclusions`, { employee_id: employeeId, reason }),
+  decideExclusion: (id, approve, note) => send("post", `/stock-audit/exclusions/${id}/${approve ? "approve" : "reject"}`, { note }),
+  roles: ({ period } = {}) => get("/stock-audit/roles", { period }),
+  assignRole: (body) => send("put", "/stock-audit/roles", body),
+  settingsView: () => get("/stock-audit/settings"),
   createCycle: (body) => send("post", "/stock-audit/cycles", body),
   hrReport: ({ date, period } = {}) => get("/stock-audit/hr/report", { date, period }),
 };

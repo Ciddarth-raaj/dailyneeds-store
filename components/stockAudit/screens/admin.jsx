@@ -255,3 +255,132 @@ export function PolicySettings() {
     </Screen>
   );
 }
+
+const EXCL_COLOR = { REQUESTED: "orange", APPROVED: "green", REJECTED: "red", WITHDRAWN: "gray" };
+
+/** Screen 32: each store's eligible headcount for the cycle, its snapshot, and exclusions (reason + decision by someone else). */
+export function EligibleHeadcount() {
+  const { can, params } = useStockAudit();
+  const [tick, setTick] = useState(0);
+  const s = useLoad(() => adapter.eligibility({}), [tick]);
+  const [open, setOpen] = useState(params.outlet ? String(params.outlet) : null);
+  const [reason, setReason] = useState({});
+  const refresh = () => setTick(tick + 1);
+  return (
+    <Screen title="Eligible Headcount & Exclusions" subtitle="Participation = eligible staff who counted ÷ ALL eligible active staff of the store. The snapshot freezes the headcount for the cycle; later transfers, resignations and joiners do not change it.">
+      <Loader s={s}>
+        {(d) => (
+          <Stack spacing={3}>
+            {d.stores.map((st) => {
+              const p = st.participation_detail || {};
+              const isOpen = open === String(st.outlet_id);
+              return (
+                <Section key={st.outlet_id} title={st.name} subtitle={st.snapshot ? `Snapshot taken ${fmtDateTime(st.snapshot.taken_at)} by ${st.snapshot.taken_by_name || "—"} · ${st.snapshot.employee_count} employees` : "No snapshot yet: the live headcount is used and participation is provisional"}
+                  actions={<>
+                    {!st.snapshot && can(P.CYCLES) ? <Button size="sm" minH="38px" colorScheme="purple" onClick={async () => (await act(() => adapter.takeSnapshot(st.outlet_id), "Snapshot taken")) && refresh()}>Take snapshot</Button> : null}
+                    <Button size="sm" minH="38px" variant="outline" colorScheme="purple" onClick={() => setOpen(isOpen ? null : String(st.outlet_id))}>{isOpen ? "Hide" : "Show"} employees</Button>
+                  </>}>
+                  <StatGrid cols={{ base: 2, md: 4 }}>
+                    <StatCard label="Eligible staff" c={p.eligible ?? st.eligible.length} />
+                    <StatCard label="Participated" c={p.participated ?? 0} accent="green.400" />
+                    <StatCard label="Participation" c={st.participation} kind="pct" accent={BRAND.orange} sub="× 5 = Premier League points" />
+                    <StatCard label="Excluded (approved)" c={(p.excluded || []).length} accent="gray.300" />
+                  </StatGrid>
+                  {p.unmapped_counters ? <Text fontSize="xs" color="orange.600" mb={2}>{p.unmapped_counters} RetailPilot user(s) counted here but are not mapped to an employee: their counts do not raise participation until mapped.</Text> : null}
+                  {isOpen ? (
+                    <>
+                      <Text fontWeight={600} fontSize="sm" mt={2} mb={1}>Not counted yet ({(p.not_participated || []).length})</Text>
+                      <DataList rows={p.not_participated || []} keyOf={(r) => r.employee_id} columns={[
+                        { key: "name", label: "Employee", primary: true },
+                        { key: "x", label: "Exclude (reason required)", render: (r) => can(P.CYCLES) ? (
+                          <Flex gap={2} direction={{ base: "column", md: "row" }}>
+                            <Input size="sm" h="38px" placeholder="Reason, e.g. long leave for the whole cycle" value={reason[r.employee_id] || ""} onChange={(e) => setReason({ ...reason, [r.employee_id]: e.target.value })} />
+                            <Button size="sm" minH="38px" variant="outline" colorScheme="red" isDisabled={isLive() && (reason[r.employee_id] || "").trim().length < 5} onClick={async () => (await act(() => adapter.requestExclusion(st.outlet_id, r.employee_id, reason[r.employee_id]), "Exclusion requested: another person decides it")) && refresh()}>Request</Button>
+                          </Flex>
+                        ) : "—" },
+                      ]} />
+                    </>
+                  ) : null}
+                  <Text fontWeight={600} fontSize="sm" mt={3} mb={1}>Exclusion requests and history</Text>
+                  <DataList rows={st.exclusions || []} keyOf={(r) => r.id} columns={[
+                    { key: "emp", label: "Employee", primary: true, render: (r) => r.employee_name || r.employee_id },
+                    { key: "reason", label: "Reason", primary: true, render: (r) => <Text as="span" fontSize="xs">{r.reason}</Text> },
+                    { key: "status", label: "Status", mobileRight: true, render: (r) => <Badge colorScheme={EXCL_COLOR[r.status]}>{r.status.toLowerCase()}</Badge> },
+                    { key: "req", label: "Requested", render: (r) => <Text as="span" fontSize="xs">{r.requested_by_name || "—"} · {fmtDateTime(r.requested_at)}</Text> },
+                    { key: "dec", label: "Decided", render: (r) => <Text as="span" fontSize="xs">{r.decided_by_name ? `${r.decided_by_name} · ${fmtDateTime(r.decided_at)}` : "—"}</Text> },
+                    { key: "act", label: "", render: (r) => (r.status === "REQUESTED" && can(P.EXCLUSIONS_APPROVE) ? (
+                      <Flex gap={1}>
+                        <Button size="xs" colorScheme="green" onClick={async () => (await act(() => adapter.decideExclusion(r.id, true), "Exclusion approved")) && refresh()}>Approve</Button>
+                        <Button size="xs" variant="outline" colorScheme="red" onClick={async () => (await act(() => adapter.decideExclusion(r.id, false), "Exclusion rejected")) && refresh()}>Reject</Button>
+                      </Flex>
+                    ) : null) },
+                  ]} />
+                </Section>
+              );
+            })}
+          </Stack>
+        )}
+      </Loader>
+    </Screen>
+  );
+}
+
+const ROLE_LABEL = { SUPERVISOR: "Supervisor", STORE_MANAGER: "Store Manager", OPERATIONS_MANAGER: "Operations Manager" };
+const STATE_TEXT = { ASSIGNED: ["green", "assigned"], ONE_CANDIDATE: ["purple", "one qualifies - confirm"], CHOOSE: ["orange", "several qualify - choose"], NO_CANDIDATE: ["red", "nobody qualifies"] };
+
+function RoleSlot({ outletId, slot, can, onSaved }) {
+  const [pick, setPick] = useState(slot.assigned ? String(slot.assigned.employee_id) : slot.candidates.length === 1 ? String(slot.candidates[0].employee_id) : "");
+  const [why, setWhy] = useState("");
+  const [c, label] = STATE_TEXT[slot.state];
+  return (
+    <Box p={3} border="1px solid" borderColor="gray.100" borderRadius="md">
+      <Flex justify="space-between" align="center" gap={2} mb={2} wrap="wrap">
+        <Text fontWeight={600}>{ROLE_LABEL[slot.role]}</Text>
+        <Badge colorScheme={c} textTransform="none">{label}</Badge>
+      </Flex>
+      {slot.assigned ? <Text fontSize="sm" mb={2}>{slot.assigned.employee_name} <Text as="span" fontSize="xs" color="gray.500">· by {slot.assigned.assigned_by_name || "—"}, {fmtDateTime(slot.assigned.assigned_at)}</Text></Text> : <Text fontSize="sm" color="gray.500" mb={2}>Nobody assigned: this incentive stays pending.</Text>}
+      {can(P.ROLES) && slot.candidates.length ? (
+        <Stack spacing={2}>
+          <Select size="sm" h="40px" placeholder="Choose the responsible person" value={pick} onChange={(e) => setPick(e.target.value)}>
+            {slot.candidates.map((e) => <option key={e.employee_id} value={e.employee_id}>{e.name} · {e.designation}{e.outlet_id && slot.role === "OPERATIONS_MANAGER" ? ` · store ${e.outlet_id}` : ""}</option>)}
+          </Select>
+          <Input size="sm" h="38px" placeholder={slot.state === "CHOOSE" ? "Why this person (recommended)" : "Note (optional)"} value={why} onChange={(e) => setWhy(e.target.value)} />
+          <Button size="sm" minH="38px" colorScheme="purple" isDisabled={isLive() && !pick} onClick={async () => (await act(() => adapter.assignRole({ outlet_id: outletId || undefined, role: slot.role, employee_id: Number(pick), reason: why }), `${ROLE_LABEL[slot.role]} assigned`)) && onSaved()}>{slot.assigned ? "Replace" : "Assign"}</Button>
+        </Stack>
+      ) : null}
+      {slot.history && slot.history.length > 1 ? <Text fontSize="xs" color="gray.500" mt={2}>History: {slot.history.map((h) => `${h.employee_name} (${h.status.toLowerCase()})`).join(" → ")}</Text> : null}
+    </Box>
+  );
+}
+
+/** Screen 33: the responsible Supervisor, Store Manager and Operations Manager per audit period. */
+export function ResponsiblePersons() {
+  const { can } = useStockAudit();
+  const [tick, setTick] = useState(0);
+  const s = useLoad(() => adapter.roles({}), [tick]);
+  return (
+    <Screen title="Responsible Persons" subtitle="Candidates come from DNDS designation IDs, the Branch Master store and active status - never from a designation name. One management role per person per audit period, so nobody receives two management incentives.">
+      <Loader s={s}>
+        {(d) => (
+          <Stack spacing={3}>
+            {d.operations_manager ? (
+              <Section title="Operations Manager · all five stores">
+                <RoleSlot outletId={null} slot={d.operations_manager} can={can} onSaved={() => setTick(tick + 1)} />
+              </Section>
+            ) : null}
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={3}>
+              {d.stores.map((st) => (
+                <Section key={st.outlet_id} title={st.name}>
+                  <Stack spacing={2}>
+                    <RoleSlot outletId={st.outlet_id} slot={st.store_manager} can={can} onSaved={() => setTick(tick + 1)} />
+                    <RoleSlot outletId={st.outlet_id} slot={st.supervisor} can={can} onSaved={() => setTick(tick + 1)} />
+                  </Stack>
+                </Section>
+              ))}
+            </SimpleGrid>
+          </Stack>
+        )}
+      </Loader>
+    </Screen>
+  );
+}

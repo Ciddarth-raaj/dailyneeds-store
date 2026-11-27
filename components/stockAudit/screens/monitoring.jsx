@@ -38,8 +38,8 @@ export function CompanyDashboard() {
             <>
               <StatGrid cols={{ base: 2, md: 3, lg: 5 }}>
                 <StatCard label="Participating stores" c={stores.length} sub="Warehouse excluded" onClick={nav("store")} />
-                <StatCard label="Eligible employees" c={total(stores, (x) => x.eligible_employees)} onClick={nav("employees")} />
-                <StatCard label="Employees participating" c={total(stores, (x) => x.participating)} onClick={nav("employees")} />
+                <StatCard label="Eligible employees" c={stores.every((x) => x.eligible_employees != null) ? total(stores, (x) => x.eligible_employees) : { status: "UNAVAILABLE", reason: "HEADCOUNT_UNAVAILABLE" }} sub="Active counting staff of the stores" onClick={nav("eligibility")} />
+                <StatCard label="Employees participating" c={stores.every((x) => x.eligible_employees != null) ? total(stores, (x) => x.participating) : { status: "UNAVAILABLE", reason: "HEADCOUNT_UNAVAILABLE" }} sub="Eligible staff who counted" onClick={nav("eligibility")} />
                 <StatCard label="Articles allotted" c={allotted} onClick={nav("allotment")} />
                 <StatCard label="Audited today" c={total(stores, (x) => x.audited_today)} accent={BRAND.orange} onClick={nav("employees")} />
                 <StatCard label="Total audited" c={audited} onClick={nav("articles")} />
@@ -62,7 +62,7 @@ export function CompanyDashboard() {
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={3}>
                   {stores.map((st) => (
                     <Box key={st.outlet_id} border="1px solid" borderColor="gray.100" borderRadius="lg" p={3} cursor="pointer" _hover={{ boxShadow: "md" }} onClick={() => go("store", { outlet: st.outlet_id })}>
-                      <Flex justify="space-between" mb={2}><Heading size="sm">{st.name}</Heading><Pill>{st.eligible_employees} employees</Pill></Flex>
+                      <Flex justify="space-between" mb={2}><Heading size="sm">{st.name}</Heading><Pill>{st.eligible_employees == null ? "headcount n/a" : `${st.participating}/${st.eligible_employees} counting`}</Pill></Flex>
                       <Progress c={st.completion} label="Completion" />
                       <Box h={2} />
                       <Progress c={st.recount_progress} label="Recounts (of 5% required)" color={BRAND.orange} />
@@ -110,7 +110,7 @@ export function StoreDashboard() {
               <StatCard label="Shortage value" c={st.shortage_value} kind="money" accent="red.400" onClick={nav("variance", { outlet: st.outlet_id })} />
               <StatCard label="Excess value" c={st.excess_value} kind="money" accent="green.400" onClick={nav("variance", { outlet: st.outlet_id })} />
               <StatCard label="Recount progress" c={st.recount_progress} kind="pct" onClick={nav("verification", { outlet: st.outlet_id })} />
-              <StatCard label="Employees participating" c={`${st.participating} of ${st.eligible_employees}`} kind="raw" onClick={nav("employees", { outlet: st.outlet_id })} />
+              <StatCard label="Employees participating" c={st.participation} kind="pct" sub={st.eligible_employees == null ? "Eligible headcount not available" : `${st.participating} of ${st.eligible_employees} eligible staff${st.participation_detail && !st.participation_detail.snapshot ? " · provisional (no snapshot yet)" : ""}`} onClick={nav("eligibility", { outlet: st.outlet_id })} />
               <StatCard label="Estimated employee incentives" c={st.estimate_employee} kind="money" sub={`Calculated so far ${fmtMoney(st.estimated_employee)} · ${st.estimate_employee_none} without recounts`} onClick={nav("incentives", { outlet: st.outlet_id })} />
             </StatGrid>
             <Section title="Employees" subtitle="Tap an employee for article-level details" actions={<Button size="sm" variant="outline" colorScheme="purple" onClick={() => go("employees", { outlet: st.outlet_id })}>Full employee report</Button>}>

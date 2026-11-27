@@ -62,6 +62,13 @@ const ARTICLES = [
   ["Maggi Noodles 12 pack", "Snacks & Branded Foods"], ["Nescafe Classic 50g", "Beverages"], ["Kissan Jam 500g", "Snacks & Branded Foods"],
 ];
 
+// Sample staff who have not counted yet (they are in the eligible headcount, so they lower participation).
+const SAMPLE_NOT_COUNTED = {
+  3: [{ employee_id: 3901, name: "Saranya P", designation_id: 2 }],
+  5: [{ employee_id: 3902, name: "Ilango R", designation_id: 4 }, { employee_id: 3903, name: "Kowsalya M", designation_id: 2 }],
+  7: [],
+};
+
 // ------------------------------------------------------------------ employees
 let EMP_CACHE = null;
 export function employees() {
@@ -166,13 +173,18 @@ export function storeView(st, state) {
   const r = rng(st.outlet_id * 13);
   const shortageQty = Math.round(audited * (0.011 + r() * 0.01));
   const excessQty = Math.round(audited * (0.006 + r() * 0.008));
-  const participating = list.filter((e) => e.audited > 0).length;
+  // Eligible headcount = ALL active counting staff of the store (sample: the counters + those who have not counted yet)
+  const notCounted = SAMPLE_NOT_COUNTED[st.outlet_id] || [];
+  const participating = list.filter((e) => e.audited > 0 && e.employee_id).length;
+  const eligibleN = list.filter((e) => e.employee_id).length + notCounted.length;
   return {
     ...st,
     source: SOURCE,
     employees: list,
-    eligible_employees: list.length,
+    eligible_employees: eligibleN,
     participating,
+    participation: eligibleN ? { ...available((participating * 100) / eligibleN), provisional: st.outlet_id !== 7 } : notApplicable("NO_DATA"),
+    participation_detail: { snapshot: st.outlet_id === 7, eligible: eligibleN, participated: participating, not_participated: notCounted, excluded: st.outlet_id === 5 ? [{ employee_id: 3999, name: "Revathi K", reason: "Maternity leave for the whole cycle", decided_by: "HR Manager" }] : [], counted_outside_headcount: 0, unmapped_counters: list.filter((e) => e.audited > 0 && !e.employee_id).length },
     allotted: withAllot ? available(st.articles) : unavailable("ALLOTMENT_UNAVAILABLE"),
     audited_today: sum(list, (e) => e.today),
     audited,
@@ -223,7 +235,7 @@ export function saplKpisOf(s) {
     completion: s.completion,
     accuracy: s.accuracy,
     recount: s.recount_progress,
-    participation: s.eligible_employees ? available((s.participating * 100) / s.eligible_employees) : notApplicable("NO_DATA"),
+    participation: s.participation,
   };
 }
 

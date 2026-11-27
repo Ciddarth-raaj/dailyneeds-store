@@ -25,6 +25,8 @@ export const P = {
   HR_REPORTS: "view_stock_audit_hr_reports",
   HR_PDF: "download_stock_audit_hr_pdf",
   PAYROLL: "process_stock_audit_payroll",
+  ROLES: "manage_stock_audit_roles",
+  EXCLUSIONS_APPROVE: "approve_stock_audit_exclusions",
 };
 
 export const PERMISSION_LABELS = {
@@ -48,6 +50,8 @@ export const PERMISSION_LABELS = {
   [P.HR_REPORTS]: "Stock Audit: HR all-store reporting",
   [P.HR_PDF]: "Stock Audit: Download HR daily PDFs",
   [P.PAYROLL]: "Stock Audit: Payroll processing of approved incentives",
+  [P.ROLES]: "Stock Audit: Assign responsible Supervisor / Store Manager / Operations Manager",
+  [P.EXCLUSIONS_APPROVE]: "Stock Audit: Approve headcount exclusions (never one's own request)",
 };
 
 const ALL = Object.values(P);
@@ -55,7 +59,7 @@ const ALL = Object.values(P);
 /** Preview-only personas, to review what each role sees. The real app uses the signed-in user's keys. */
 export const VIEWERS = [
   { id: "admin", label: "Admin (all permissions)", keys: ALL, outlets: null },
-  { id: "hr", label: "HR (all five stores, reports)", keys: [P.STORE, P.COMPANY, P.HR_REPORTS, P.HR_PDF, P.SAPL_VIEW, P.IMPORT, P.MAPPING], outlets: null },
+  { id: "hr", label: "HR (all five stores, reports)", keys: [P.STORE, P.COMPANY, P.HR_REPORTS, P.HR_PDF, P.SAPL_VIEW, P.IMPORT, P.MAPPING, P.CYCLES, P.ROLES], outlets: null },
   { id: "om", label: "Operations Manager", keys: [P.STORE, P.COMPANY, P.SAPL_VIEW, P.APPROVE, P.VERIFY, P.ELIGIBILITY, P.CALCULATE], outlets: null },
   { id: "sm", label: "Store Manager – ECR", keys: [P.STORE, P.SAPL_VIEW, P.APPROVE, P.VERIFY, P.OWN], outlets: [7] },
   { id: "sup", label: "Supervisor – ECR", keys: [P.STORE, P.SAPL_VIEW, P.VERIFY, P.OWN], outlets: [7] },

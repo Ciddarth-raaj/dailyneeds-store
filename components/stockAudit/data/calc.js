@@ -36,6 +36,8 @@ export const REASON_LABEL = {
   NOT_APPROVED: "Not approved yet",
   HISTORY_UNAVAILABLE: "Historical figures not reconstructable",
   BEFORE_DEADLINE: "Audit deadline not reached yet",
+  HEADCOUNT_UNAVAILABLE: "Eligible headcount not available",
+  ROLE_NOT_ASSIGNED: "Responsible person not assigned",
 };
 
 /** Confirmed 27 Nov 2026. */

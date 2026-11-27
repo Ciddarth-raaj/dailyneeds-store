@@ -18,6 +18,11 @@ const ORANGE = [241, 90, 34];
 const GREY = [110, 110, 110];
 const LIGHT = [244, 236, 247];
 
+/**
+ * A narrow PHONE page (120 x 240 mm) instead of A4: shared in team groups and
+ * read on phones, where A4 text is too small without zooming.
+ */
+const PAGE = [120, 240];
 const nf = new Intl.NumberFormat("en-IN");
 const num = (n) => (n == null ? "-" : nf.format(Math.round(n)));
 const pct = (n) => (n == null ? "-" : `${(Math.floor(n * 100) / 100).toFixed(2)}%`);
@@ -33,20 +38,21 @@ const istDate = (d) => new Date(`${d}T00:00:00+05:30`).toLocaleDateString("en-IN
 
 function header(doc, { logo, title, subtitle, meta }) {
   const W = doc.internal.pageSize.getWidth();
-  if (logo) doc.addImage(logo, "PNG", 12, 10, 50, 10);
+  if (logo) doc.addImage(logo, "PNG", 12, 9, 40, 8);
   doc.setFillColor(...PURPLE);
   doc.rect(0, 26, W, 1.2, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
+  doc.setFontSize(14);
   doc.setTextColor(...PURPLE);
   doc.text(title, 12, 36);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(...GREY);
   doc.text(subtitle, 12, 42);
-  doc.setFontSize(8);
-  doc.text(meta, 12, 47);
-  return 54;
+  doc.setFontSize(7.5);
+  const lines = doc.splitTextToSize(meta, doc.internal.pageSize.getWidth() - 24);
+  doc.text(lines, 12, 47);
+  return 50 + lines.length * 3.5;
 }
 
 function footer(doc, note) {
@@ -55,10 +61,11 @@ function footer(doc, note) {
     doc.setPage(i);
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(...GREY);
-    doc.text(note, 12, H - 8);
-    doc.text(`Page ${i} of ${n}`, W - 12, H - 8, { align: "right" });
+    // one sentence per line, so "No salary or individual incentive amounts." is never broken
+    doc.text(note.split(/(?<=\.)\s+/), 12, H - 11);
+    doc.text(`Page ${i} of ${n}`, W - 12, H - 9, { align: "right" });
   }
 }
 
@@ -71,7 +78,7 @@ function ensure(doc, y, need) {
 }
 
 /** A labelled figure grid: pairs of [label, value], 3 per row. */
-function figures(doc, y, pairs, { cols = 3 } = {}) {
+function figures(doc, y, pairs, { cols = 2 } = {}) {
   const W = doc.internal.pageSize.getWidth() - 24;
   const cw = W / cols;
   pairs.forEach(([label, value], i) => {
@@ -79,10 +86,10 @@ function figures(doc, y, pairs, { cols = 3 } = {}) {
     const row = Math.floor(i / cols);
     const x = 12 + col * cw;
     const yy = y + row * 12;
-    doc.setFontSize(7.5);
+    doc.setFontSize(8);
     doc.setTextColor(...GREY);
     doc.text(label, x, yy);
-    doc.setFontSize(11);
+    doc.setFontSize(11.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 30, 30);
     doc.text(String(value), x, yy + 5);
@@ -97,8 +104,8 @@ function band(doc, y, text, color = PURPLE) {
   doc.rect(12, y, W - 24, 7, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.text(text, 15, y + 5);
+  doc.setFontSize(9);
+  doc.text(text, 15, y + 5, { maxWidth: W - 30 });
   doc.setFont("helvetica", "normal");
   return y + 11;
 }
@@ -107,7 +114,7 @@ function band(doc, y, text, color = PURPLE) {
  * @param data { date, cycle, generatedAt, lastSync, historical: bool, stores: [storeView], standings: [...], sample: bool }
  */
 export function consolidatedPdf(data, { logo } = {}) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const doc = new jsPDF({ unit: "mm", format: PAGE });
   const sampleTag = data.sample ? "  |  SAMPLE DATA" : "";
   let y = header(doc, {
     logo,
@@ -134,7 +141,7 @@ export function consolidatedPdf(data, { logo } = {}) {
   data.stores.forEach((s) => {
     y = ensure(doc, y, 52);
     const r = rankOf.get(s.outlet_id);
-    y = band(doc, y, `${s.name}${r ? `   |   SAPL rank ${r.rank} (provisional)   |   ${r.total} pts` : ""}`, PURPLE);
+    y = band(doc, y, `${s.name}${r ? ` | SAPL rank ${r.rank} (provisional) | ${r.total} pts` : ""}`, PURPLE);
     y = figures(doc, y, [
       ["Articles allotted", cum(s.allotted)],
       ["Audited on this date", num(s.audited_today)],
@@ -143,7 +150,7 @@ export function consolidatedPdf(data, { logo } = {}) {
       ["Completion", data.historical ? "Unavailable" : cellText(s.completion, "pct")],
       ["Counting accuracy", data.historical ? "Unavailable" : cellText(s.accuracy, "pct")],
       ["Recount progress", data.historical ? "Unavailable" : `${num(s.recount_done)} of ${num(s.recount_required)} (${cellText(s.recount_progress, "pct")})`],
-      ["Employees participating", `${s.participating} of ${s.eligible_employees}`],
+      ["Employees participating", s.eligible_employees == null ? "Unavailable (headcount)" : `${s.participating} of ${s.eligible_employees} (${cellText(s.participation, "pct")})`],
     ]);
     y += 3;
   });
@@ -171,7 +178,7 @@ export function consolidatedPdf(data, { logo } = {}) {
 
 /** @param data { date, cycle, generatedAt, lastSync, historical, store: storeView, standing, sample } */
 export function storePdf(data, { logo } = {}) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const doc = new jsPDF({ unit: "mm", format: PAGE });
   const s = data.store;
   const sampleTag = data.sample ? "  |  SAMPLE DATA" : "";
   let y = header(doc, {
@@ -181,7 +188,7 @@ export function storePdf(data, { logo } = {}) {
     meta: `Generated ${ist(data.generatedAt)}  |  Data as of last successful sync ${ist(data.lastSync)}`,
   });
   const H = data.historical;
-  y = band(doc, y, `Store totals${data.standing ? `   |   SAPL rank ${data.standing.rank} (provisional), ${data.standing.total} pts` : ""}`);
+  y = band(doc, y, `Store totals${data.standing ? ` | SAPL rank ${data.standing.rank} (provisional), ${data.standing.total} pts` : ""}`);
   y = figures(doc, y, [
     ["Articles allotted", H ? "Unavailable" : cellText(s.allotted)],
     ["Audited on this date", num(s.audited_today)],
@@ -191,7 +198,7 @@ export function storePdf(data, { logo } = {}) {
     ["Counting accuracy", H ? "Unavailable" : cellText(s.accuracy, "pct")],
     ["Recounts required", H ? "Unavailable" : num(s.recount_required)],
     ["Recounts completed", H ? "Unavailable" : num(s.recount_done)],
-    ["Employees participating", `${s.participating} of ${s.eligible_employees}`],
+    ["Employees participating", s.eligible_employees == null ? "Unavailable (headcount)" : `${s.participating} of ${s.eligible_employees} (${cellText(s.participation, "pct")})`],
   ]);
   y += 3;
   y = band(doc, y, `Employees (${s.employees.length})`);
@@ -200,10 +207,10 @@ export function storePdf(data, { logo } = {}) {
   const W = doc.internal.pageSize.getWidth();
   const emps = [...s.employees].sort((a, b) => (a.name || a.rp_name).localeCompare(b.name || b.rp_name));
   emps.forEach((e, i) => {
-    y = ensure(doc, y, 13);
+    y = ensure(doc, y, 19);
     if (i % 2 === 0) {
       doc.setFillColor(...LIGHT);
-      doc.rect(12, y - 4, W - 24, 12.5, "F");
+      doc.rect(12, y - 4, W - 24, 18, "F");
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
@@ -214,18 +221,13 @@ export function storePdf(data, { logo } = {}) {
     doc.setTextColor(...GREY);
     doc.text(e.designation || "", W - 15, y, { align: "right" });
     doc.setTextColor(40, 40, 40);
-    doc.setFontSize(8);
-    const line = [
-      `Allotted ${H ? "Unavailable" : cellText(e.allotted_c)}`,
-      `Today ${num(e.today)}`,
-      `Total ${H ? "Unavailable" : num(e.audited)}`,
-      `Pending ${H ? "Unavailable" : cellText(e.pending_c)}`,
-      `Done ${H ? "Unavailable" : cellText(e.completion_c, "pct")}`,
-      `Recounts ${H ? "Unavailable" : `${num(e.recount_done)}/${num(e.recount_required)}`}`,
-      `Accuracy ${H ? "Unavailable" : cellText(e.accuracy, "pct")}`,
-    ].join("   ");
-    doc.text(line, 15, y + 5.5, { maxWidth: W - 30 });
-    y += 13.5;
+    doc.setFontSize(8.5);
+    // two short lines that fit a phone page
+    doc.text([
+      `Allotted ${H ? "Unavailable" : cellText(e.allotted_c)}   Today ${num(e.today)}   Total ${H ? "Unavailable" : num(e.audited)}   Pending ${H ? "Unavailable" : cellText(e.pending_c)}`,
+      `Done ${H ? "Unavailable" : cellText(e.completion_c, "pct")}   Recounts ${H ? "Unavailable" : `${num(e.recount_done)}/${num(e.recount_required)}`}   Accuracy ${H ? "Unavailable" : cellText(e.accuracy, "pct")}`,
+    ], 15, y + 5.5);
+    y += 19;
   });
 
   footer(doc, `Daily Needs Stock Audit${data.sample ? " - SAMPLE DATA, not real figures" : ""}. No salary or individual incentive amounts.`);

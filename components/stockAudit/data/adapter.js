@@ -45,6 +45,34 @@ export const sampleAdapter = {
   mapping: () =>
     delay(D.employees().map((e) => ({ rp_user_id: e.rp_user_id, rp_name: e.rp_name, store: e.store, outlet_id: e.outlet_id, employee_id: e.employee_id, employee_name: e.name, designation: e.designation, mapped: e.employee_id != null }))),
   cycles: () => delay(D.CYCLES),
+  eligibility: ({ state }) => {
+    const stores = D.stores(state);
+    return delay({
+      period_code: D.CYCLES[0].period_code,
+      eligible_designation_ids: [2, 4],
+      stores: stores.map((s) => ({
+        outlet_id: s.outlet_id, name: s.name, cycle_id: 100 + s.outlet_id,
+        snapshot: s.outlet_id === 7 ? { employee_count: s.eligible_employees, taken_by_name: "HR Manager", taken_at: "2026-11-25T09:00:00+05:30" } : null,
+        eligible: [...s.employees.filter((e) => e.employee_id).map((e) => ({ employee_id: e.employee_id, name: e.name, designation_id: e.designation === "Cashier" ? 4 : 2 })), ...s.participation_detail.not_participated],
+        participation: s.participation, participation_detail: s.participation_detail,
+        exclusions: s.outlet_id === 5 ? [{ id: 1, employee_id: 3999, employee_name: "Revathi K", reason: "Maternity leave for the whole cycle", status: "APPROVED", requested_by_name: "Store HR", requested_at: "2026-11-25T10:00:00+05:30", decided_by_name: "HR Manager", decided_at: "2026-11-25T12:00:00+05:30" }] : [],
+      })),
+    });
+  },
+  roles: ({ state }) => {
+    const pick = (o, n, d) => ({ employee_id: 4000 + o * 10 + n, name: `${["Kumar", "Lakshmi", "Murugan", "Priya"][(o + n) % 4]} ${["S", "R", "M"][n % 3]}`, outlet_id: o, designation_id: d, designation: d === 9 ? "Supervisor" : d === 3 ? "Store Manager" : "Operations Manager" });
+    const slot = (o, role, cands, assigned) => ({ role, candidates: cands, assigned: assigned ? { ...assigned, employee_name: assigned.name, assigned_by_name: "HR Manager", assigned_at: "2026-11-25T09:30:00+05:30", reason: null } : null, state: assigned ? "ASSIGNED" : cands.length === 1 ? "ONE_CANDIDATE" : cands.length ? "CHOOSE" : "NO_CANDIDATE", history: [] });
+    return delay({
+      period_code: D.CYCLES[0].period_code,
+      role_designation_ids: { SUPERVISOR: [9], STORE_MANAGER: [3], OPERATIONS_MANAGER: [27] },
+      stores: D.STORES.map((s) => {
+        const sup = s.outlet_id === 7 ? [] : s.outlet_id === 5 ? [pick(5, 1, 9), pick(5, 2, 9)] : [pick(s.outlet_id, 1, 9)];
+        const sm = s.outlet_id === 5 || s.outlet_id === 7 ? [pick(s.outlet_id, 3, 3), pick(s.outlet_id, 4, 3)] : [pick(s.outlet_id, 3, 3)];
+        return { outlet_id: s.outlet_id, name: s.name, cycle_id: 100 + s.outlet_id, supervisor: slot(s.outlet_id, "SUPERVISOR", sup, s.outlet_id === 4 ? sup[0] : null), store_manager: slot(s.outlet_id, "STORE_MANAGER", sm, s.outlet_id === 4 ? sm[0] : null) };
+      }),
+      operations_manager: slot(0, "OPERATIONS_MANAGER", [pick(0, 5, 27)], null),
+    });
+  },
   mappingEmployees: () => delay(D.employees().filter((e) => e.employee_id).map((e) => ({ employee_id: e.employee_id, employee_name: e.name, store_id: e.outlet_id, designation: e.designation }))),
   hrReport: async ({ state, date }) => ({
     date,

@@ -131,3 +131,26 @@ describe("estimated individual incentive", async () => {
     assert.ok(v.some((e) => e.est.estimate.status === "AVAILABLE"));
   });
 });
+
+describe("participation on the full eligible headcount", () => {
+  it("denominator is every eligible store employee, including those who have not counted", () => {
+    const s = D.stores("allotment").find((x) => x.outlet_id === 5);
+    assert.ok(s.participation_detail.not_participated.length > 0);
+    assert.equal(s.eligible_employees, s.participation_detail.participated + s.participation_detail.not_participated.length);
+    assert.equal(s.participation.value, (s.participating * 100) / s.eligible_employees);
+  });
+  it("Premier League participation points = participation % × 5 / 100", () => {
+    for (const r of D.saplStandings("allotment")) {
+      const p = r.rows.find((x) => x.key === "participation");
+      assert.equal(p.points, Math.round(((5 * r.store.participation.value) / 100) * 10) / 10);
+    }
+  });
+  it("PDFs show participation with its percentage, and 'Unavailable (headcount)' when it is not known", () => {
+    const d = { date: D.TODAY, cycle: "Q4", generatedAt: "2026-11-27T06:00:00+05:30", lastSync: D.LAST_SYNC, historical: false, stores: D.stores("allotment"), standings: D.saplStandings("allotment"), sample: true };
+    const st = d.stores.find((s) => s.outlet_id === 5);
+    const text = storePdf({ ...d, store: st, standing: d.standings.find((x) => x.store.outlet_id === 5) }).output();
+    assert.ok(text.includes(`${st.participating} of ${st.eligible_employees}`));
+    const none = { ...st, eligible_employees: null, participating: null, participation: unavailable("HEADCOUNT_UNAVAILABLE") };
+    assert.ok(storePdf({ ...d, store: none, standing: null }).output().includes("Unavailable \\(headcount\\)") || storePdf({ ...d, store: none, standing: null }).output().includes("Unavailable (headcount)"));
+  });
+});

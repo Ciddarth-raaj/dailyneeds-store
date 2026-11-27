@@ -446,6 +446,8 @@ export const PERMISSIONS = {
     view_stock_audit_hr_reports: "Stock Audit: HR all-store reporting",
     download_stock_audit_hr_pdf: "Stock Audit: Download HR daily PDFs",
     process_stock_audit_payroll: "Stock Audit: Payroll processing of approved incentives",
+    manage_stock_audit_roles: "Stock Audit: Assign responsible Supervisor / Store Manager / Operations Manager",
+    approve_stock_audit_exclusions: "Stock Audit: Approve headcount exclusions (never one's own request)",
   },
 
   // Warehouse Daily Reports (WMS > Warehouse Reports)
