@@ -559,6 +559,21 @@ const ALL_PAGES_MENU = {
       },
     },
   },
+  // Stock Audit & Premier League (components/stockAudit). One page,
+  // /stock-audit/<screen>; each entry opens a screen of that page.
+  stock_audit: {
+    title: "Stock Audit",
+    selected: false,
+    openPage: false,
+    icon: "fa-clipboard-check",
+    subMenu: {
+      stock_audit_dashboard: { title: "Stock Audit Dashboard", permission: "view_stock_audit", selected: false, location: "/stock-audit/company" },
+      stock_audit_my: { title: "My Stock Audit", permission: "view_own_stock_audit_performance", selected: false, location: "/stock-audit/my" },
+      stock_audit_sapl: { title: "Premier League (SAPL)", permission: "view_sapl_leaderboard", selected: false, location: "/stock-audit/sapl" },
+      stock_audit_hr: { title: "Daily PDF Reports", permission: "download_stock_audit_hr_pdf", selected: false, location: "/stock-audit/hr-reports" },
+      stock_audit_all: { title: "All Stock Audit screens", permission: "view_stock_audit", selected: false, location: "/stock-audit" },
+    },
+  },
 };
 
 /** Menu tree for the WMS module (module rail → WMS). */

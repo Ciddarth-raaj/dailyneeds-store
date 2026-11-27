@@ -423,6 +423,32 @@ export const PERMISSIONS = {
     upload_oos_report: "Upload Out of Stock Report",
   },
 
+  // Stock Audit & DNDS Stock Audit Premier League (SAPL). One key per decision;
+  // which stores a user sees is decided by the backend branch scope.
+  stock_audit: {
+    view_own_stock_audit_performance: "Stock Audit: My performance and incentive (self-service)",
+    view_stock_audit: "Stock Audit: Store-wise monitoring (own branch)",
+    view_stock_audit_all_stores: "Stock Audit: Company-wide monitoring (all five stores)",
+    manage_stock_audit_employee_mapping: "Stock Audit: RetailPilot employee mapping",
+    manage_stock_audit_cycles: "Stock Audit: Manage audit cycles",
+    import_stock_audit_allotment: "Stock Audit: Import article allotment (Excel)",
+    approve_stock_audit_allotment_import: "Stock Audit: Approve allotment imports",
+    review_stock_audit_verification: "Stock Audit: Review recount verification",
+    review_stock_audit_variance: "Stock Audit: Review stock variances",
+    review_stock_audit_eligibility: "Stock Audit: Review article eligibility",
+    calculate_stock_audit_incentives: "Stock Audit: Calculate incentives",
+    approve_stock_audit_incentives: "Stock Audit: Approve incentives (never one's own)",
+    revoke_stock_audit_incentives: "Stock Audit: Revoke approved incentives",
+    manage_stock_audit_policy: "Stock Audit: Incentive policy settings",
+    run_stock_audit_sync: "Stock Audit: RetailPilot synchronization",
+    view_sapl_leaderboard: "SAPL: View Premier League leaderboard",
+    manage_sapl_competition: "SAPL: Manage seasons and scoring",
+    manage_sapl_prize_distribution: "SAPL: Winning store prize distribution",
+    view_stock_audit_hr_reports: "Stock Audit: HR all-store reporting",
+    download_stock_audit_hr_pdf: "Stock Audit: Download HR daily PDFs",
+    process_stock_audit_payroll: "Stock Audit: Payroll processing of approved incentives",
+  },
+
   // Warehouse Daily Reports (WMS > Warehouse Reports)
   warehouse_reports: {
     upload_wh_daily_reports: "Daily Uploads page (upload the five reports)",
