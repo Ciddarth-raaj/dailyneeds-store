@@ -8,6 +8,9 @@ import { Section, SelectField, BRAND } from "../ui";
 import { Screen, StoreSelect, CycleSelect, DateSelect, NoAccess } from "./common";
 import { P } from "../permissions";
 
+/** In the published preview, browser downloads are blocked: buttons open pre-built SAMPLE PDFs instead. */
+const samplePdfs = () => (typeof window !== "undefined" && window.__SA_SAMPLE_PDFS__) || null;
+
 const logoUrl = () => (typeof window !== "undefined" && window.__SA_LOGO__) || "/assets/dnds-logo.png";
 
 async function loadLogo() {
@@ -56,7 +59,9 @@ export function HrDownload() {
   const [outlet, setOutlet] = useState("7");
   const [busy, setBusy] = useState(null);
   if (!can(P.HR_PDF)) return <Screen title="HR Daily PDF Reports"><NoAccess what="HR daily reports" /></Screen>;
+  const pdfs = samplePdfs();
   const run = async (key, fn) => {
+    if (pdfs) return;
     setBusy(key);
     try {
       const out = await fn();
@@ -79,9 +84,20 @@ export function HrDownload() {
       </Section>
       <Section title="2. Download">
         <Stack spacing={3}>
-          <Button size="lg" minH="52px" bg={BRAND.purple} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "all"} onClick={() => run("all", () => makeConsolidated(dataState, date))}>Download consolidated PDF (all five stores)</Button>
-          <Button size="lg" minH="52px" bg={BRAND.orange} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "one"} onClick={() => run("one", () => makeStore(dataState, date, outlet))}>Download store PDF · {D.STORES.find((s) => String(s.outlet_id) === outlet).name}</Button>
-          <Button size="lg" minH="52px" variant="outline" colorScheme="purple" isLoading={busy === "five"} onClick={() => run("five", () => Promise.all(D.STORES.map((s) => makeStore(dataState, date, s.outlet_id))))}>Download all five store PDFs</Button>
+          {pdfs ? (
+            <>
+              <Text fontSize="xs" color="gray.500">Preview: the buttons open pre-built SAMPLE PDFs (ECR for the store report). In DNDS Connect they download the PDF for the date and branch selected.</Text>
+              <Button as="a" href={pdfs.all} target="_blank" rel="noreferrer" size="lg" minH="52px" bg={BRAND.purple} color="white" _hover={{ opacity: 0.9 }}>Open consolidated PDF (all five stores)</Button>
+              <Button as="a" href={pdfs.store} target="_blank" rel="noreferrer" size="lg" minH="52px" bg={BRAND.orange} color="white" _hover={{ opacity: 0.9 }}>Open store PDF (sample: ECR)</Button>
+              <Button as="a" href={pdfs.allBefore} target="_blank" rel="noreferrer" size="lg" minH="52px" variant="outline" colorScheme="purple">Open consolidated PDF before allotment import</Button>
+            </>
+          ) : (
+            <>
+              <Button size="lg" minH="52px" bg={BRAND.purple} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "all"} onClick={() => run("all", () => makeConsolidated(dataState, date))}>Download consolidated PDF (all five stores)</Button>
+              <Button size="lg" minH="52px" bg={BRAND.orange} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "one"} onClick={() => run("one", () => makeStore(dataState, date, outlet))}>Download store PDF · {D.STORES.find((s) => String(s.outlet_id) === outlet).name}</Button>
+              <Button size="lg" minH="52px" variant="outline" colorScheme="purple" isLoading={busy === "five"} onClick={() => run("five", () => Promise.all(D.STORES.map((s) => makeStore(dataState, date, s.outlet_id))))}>Download all five store PDFs</Button>
+            </>
+          )}
         </Stack>
       </Section>
       <Section title="3. Share">
@@ -95,19 +111,20 @@ export function HrDownload() {
   );
 }
 
-function PdfPreview({ title, build, deps }) {
-  const [url, setUrl] = useState(null);
+function PdfPreview({ title, build, deps, sample }) {
+  const [url, setUrl] = useState(sample || null);
   const [name, setName] = useState("");
   useEffect(() => {
+    if (sample) return undefined;
     let u = null;
     build().then(({ doc, name: n }) => { u = URL.createObjectURL(doc.output("blob")); setUrl(u); setName(n); });
     return () => u && URL.revokeObjectURL(u);
   }, deps); // eslint-disable-line
   return (
-    <Screen title={title} back={{ label: "HR daily reports", path: "hr-reports" }} actions={url ? <Button as="a" href={url} download={name} size="sm" colorScheme="purple" minH="38px">Download</Button> : null}>
+    <Screen title={title} back={{ label: "HR daily reports", path: "hr-reports" }} actions={url && !sample ? <Button as="a" href={url} download={name} size="sm" colorScheme="purple" minH="38px">Download</Button> : null}>
       {url ? (
         <>
-          <Button as="a" href={url} target="_blank" rel="noreferrer" size="sm" mb={3} variant="outline" colorScheme="purple" display={{ base: "inline-flex", md: "none" }}>Open PDF</Button>
+          <Button as="a" href={url} target="_blank" rel="noreferrer" size="sm" mb={3} variant="outline" colorScheme="purple" display={sample ? "inline-flex" : { base: "inline-flex", md: "none" }}>Open PDF</Button>
           <Box as="iframe" title={title} src={url} w="100%" h={{ base: "70vh", md: "80vh" }} border="1px solid" borderColor="gray.200" borderRadius="md" bg="white" />
         </>
       ) : <Text fontSize="sm" color="gray.500">Building the PDF…</Text>}
@@ -117,11 +134,13 @@ function PdfPreview({ title, build, deps }) {
 
 export function ConsolidatedPdfPreview() {
   const { dataState } = useStockAudit();
-  return <PdfPreview title="Consolidated Daily PDF – Preview" build={() => makeConsolidated(dataState, D.TODAY)} deps={[dataState]} />;
+  const pdfs = samplePdfs();
+  return <PdfPreview title="Consolidated Daily PDF – Preview" build={() => makeConsolidated(dataState, D.TODAY)} deps={[dataState]} sample={pdfs ? (dataState === "allotment" ? pdfs.all : pdfs.allBefore) : null} />;
 }
 
 export function StorePdfPreview() {
   const { dataState, params } = useStockAudit();
   const outlet = params.outlet || 7;
-  return <PdfPreview title="Store Daily PDF – Preview" build={() => makeStore(dataState, D.TODAY, outlet)} deps={[dataState, outlet]} />;
+  const pdfs = samplePdfs();
+  return <PdfPreview title="Store Daily PDF – Preview" build={() => makeStore(dataState, D.TODAY, outlet)} deps={[dataState, outlet]} sample={pdfs ? (dataState === "allotment" ? pdfs.store : pdfs.storeBefore) : null} />;
 }

@@ -10,22 +10,28 @@ import { Toaster } from "react-hot-toast";
 import theme from "../../theme";
 import StockAuditApp from "../../components/stockAudit/StockAuditApp";
 
-function parse() {
-  const h = window.location.hash.replace(/^#\/?/, "");
-  const [path, qs] = h.split("?");
-  return { path: path || "", params: Object.fromEntries(new URLSearchParams(qs || "")) };
-}
+// In-memory routing; the address only ever carries a plain #screen name
+// (deep links with paths or query strings are not reliable in every host).
+const screenFromHash = () => (window.location.hash || "").replace(/^#\/?/, "").replace(/[^a-z0-9-]/gi, "");
 
 function Root() {
-  const [loc, setLoc] = useState(parse());
+  const [loc, setLoc] = useState({ path: screenFromHash(), params: {} });
   useEffect(() => {
-    const on = () => { setLoc(parse()); window.scrollTo(0, 0); };
+    const on = () => {
+      const path = screenFromHash();
+      setLoc((l) => (l.path === path ? l : { path, params: {} }));
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
   const go = (path, params = {}) => {
-    const qs = new URLSearchParams(params).toString();
-    window.location.hash = `/${path}${qs ? `?${qs}` : ""}`;
+    setLoc({ path, params });
+    window.scrollTo(0, 0);
+    try {
+      if (window.location.hash.replace(/^#/, "") !== path) window.history.replaceState(null, "", path ? `#${path}` : "#");
+    } catch (e) {
+      /* the hash is a convenience only */
+    }
   };
   return (
     <ChakraProvider theme={theme}>
