@@ -3,7 +3,10 @@ import React from "react";
 import { Box, Button, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
 import { SampleBanner, SelectField, BRAND, fmtDateTime } from "../ui";
-import { D } from "../data/adapter";
+import { isLive } from "../data/adapter";
+
+/** Cycles, stores, today, last sync (see context.jsx). */
+export const useMeta = () => useStockAudit().meta;
 
 export function Screen({ title, subtitle, actions, children, back, sampleNote }) {
   const { go } = useStockAudit();
@@ -19,7 +22,7 @@ export function Screen({ title, subtitle, actions, children, back, sampleNote })
         </Box>
         {actions ? <Flex gap={2} wrap="wrap">{actions}</Flex> : null}
       </Flex>
-      <SampleBanner note={sampleNote} />
+      {isLive() ? null : <SampleBanner note={sampleNote} />}
       {children}
     </Box>
   );
@@ -34,26 +37,34 @@ export function Loader({ s, children }) {
 
 /** Store choices limited to what the viewer may see (the backend enforces the same scope). */
 export function StoreSelect({ value, onChange, allowAll = true, label = "Branch" }) {
-  const { viewer } = useStockAudit();
-  const stores = D.STORES.filter((s) => !viewer.outlets || viewer.outlets.includes(s.outlet_id));
-  const options = [...(allowAll && !viewer.outlets ? [{ value: "", label: "All five stores" }] : []), ...stores.map((s) => ({ value: String(s.outlet_id), label: s.name }))];
+  const { viewer, meta } = useStockAudit();
+  // live: the backend already returns only the stores this caller may see
+  const stores = meta.stores.filter((s) => !viewer.outlets || viewer.outlets.includes(s.outlet_id));
+  const all = isLive() ? stores.length > 1 : !viewer.outlets;
+  const options = [...(allowAll && all ? [{ value: "", label: isLive() ? "All my stores" : "All five stores" }] : []), ...stores.map((s) => ({ value: String(s.outlet_id), label: s.name }))];
   return <SelectField label={label} value={value} onChange={onChange} options={options} />;
 }
 
-export function CycleSelect({ value = "101", onChange = () => {} }) {
-  return <SelectField label="Audit cycle" value={value} onChange={onChange} options={D.CYCLES.map((c) => ({ value: String(c.cycle_id), label: c.name }))} />;
+export function CycleSelect({ value, onChange = () => {} }) {
+  const { meta } = useStockAudit();
+  const cycles = meta.cycles || [];
+  const v = value != null ? value : cycles[0] ? String(cycles[0].cycle_id) : "";
+  return <SelectField label="Audit cycle" value={v} onChange={onChange} options={cycles.length ? cycles.map((c) => ({ value: String(c.cycle_id), label: c.name })) : [{ value: "", label: "No audit cycle yet" }]} />;
 }
 
+/** Today back to the programme start (25 Nov 2026). */
 export function DateSelect({ value, onChange }) {
-  return (
-    <SelectField
-      label="Date" value={value} onChange={onChange}
-      options={["2026-11-27", "2026-11-26", "2026-11-25"].map((d) => ({ value: d, label: d === "2026-11-27" ? "Today, 27 Nov 2026" : new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) }))}
-    />
-  );
+  const { meta } = useStockAudit();
+  const days = [];
+  for (let t = Date.parse(`${meta.today}T00:00:00Z`); t >= Date.parse("2026-11-25T00:00:00Z") && days.length < 60; t -= 86400000) days.push(new Date(t).toISOString().slice(0, 10));
+  const label = (d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return <SelectField label="Date" value={value} onChange={onChange} options={days.map((d) => ({ value: d, label: d === meta.today ? `Today, ${label(d)}` : label(d) }))} />;
 }
 
-export const Freshness = () => <Text fontSize="xs" color="gray.500">Last successful sync: {fmtDateTime(D.LAST_SYNC)} (sample)</Text>;
+export const Freshness = () => {
+  const { meta } = useStockAudit();
+  return <Text fontSize="xs" color="gray.500">Last successful sync: {meta.last_sync ? fmtDateTime(meta.last_sync) : "none yet"}{isLive() ? "" : " (sample)"}</Text>;
+};
 
 /** The outlets a viewer is scoped to (null = all). */
 /** Store filter's starting value: the store a tile was tapped for (if in scope), else the caller's own store, else all. */

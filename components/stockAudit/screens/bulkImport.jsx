@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import { useStockAudit } from "../context";
-import { D } from "../data/adapter";
+import { D, adapter, isLive } from "../data/adapter";
 import { readAuditorFile, validateBatch } from "../data/bulkAllotment";
 import { sampleBulkBatch } from "../data/sampleBulk";
 import { DataList, KV, Pill, Section, StatCard, StatGrid, BRAND, fmtNum, fmtPct } from "../ui";
-import { Screen, CycleSelect } from "./common";
+import { Screen, CycleSelect, useMeta } from "./common";
 
 const STATUS = {
   VALID: ["green", "Ready"],
@@ -42,7 +42,11 @@ export function BulkAllotmentImport({ startWithSample = false }) {
   const [drag, setDrag] = useState(false);
   const [done, setDone] = useState(false);
   const input = useRef();
-  const cycle = D.CYCLES[0];
+  const meta = useMeta();
+  const live = isLive();
+  const cycle = meta.cycles[0] || { name: "—", period_code: null };
+  const [server, setServer] = useState(null); // live: the backend's validation
+  const [busy, setBusy] = useState(false);
 
   const useSample = () => {
     const b = sampleBulkBatch();
@@ -56,12 +60,37 @@ export function BulkAllotmentImport({ startWithSample = false }) {
     const picked = [...list].filter((f) => /\.csv$/i.test(f.name) || f.type === "text/csv");
     if (!picked.length) return toast.error("Choose the RetailPilot CSV files (assortment-effective-….csv)");
     const read = await Promise.all(picked.map(async (f) => ({ name: f.name, text: await f.text() })));
-    setFiles((prev) => [...prev, ...read]);
-    if (!sampleCtx) setSampleCtx(sampleBulkBatch().ctx);
+    const all = [...files, ...read];
+    setFiles(all);
+    if (live) {
+      // LIVE: the backend validates against the real cycle, Branch Master, mapping, earlier imports and audits
+      setBusy(true);
+      try {
+        setServer(fromServer(await adapter.validateAllotment({ period_code: cycle.period_code, files: all })));
+      } catch (e) {
+        toast.error(e.message || "Validation failed");
+      } finally {
+        setBusy(false);
+      }
+    } else if (!sampleCtx) setSampleCtx(sampleBulkBatch().ctx);
     setStep(2);
   };
 
-  const result = useMemo(() => (files.length && sampleCtx ? validateBatch(files.map((f) => readAuditorFile(f.name, f.text)), sampleCtx) : null), [files, sampleCtx]);
+  const local = useMemo(() => (!live && files.length && sampleCtx ? validateBatch(files.map((f) => readAuditorFile(f.name, f.text)), sampleCtx) : null), [files, sampleCtx, live]);
+  const result = live ? server : local;
+  const confirm = async () => {
+    if (!live) return setDone(true);
+    setBusy(true);
+    try {
+      await adapter.confirmAllotment(server.batch_id);
+      toast.success("Allotment imported");
+      setDone(true);
+    } catch (e) {
+      toast.error(e.message || "Import failed");
+    } finally {
+      setBusy(false);
+    }
+  };
   const unmapped = result ? result.files.filter((f) => f.status !== "REJECTED" && f.auditor_id && !f.employee) : [];
 
   return (
@@ -69,7 +98,7 @@ export function BulkAllotmentImport({ startWithSample = false }) {
       title={startWithSample ? "Allotment Import – Validation" : "Allotment Import – Bulk CSV"}
       subtitle="RetailPilot 'assortment-effective' CSVs exactly as exported: one file per auditor. Store and auditor are read from each file. Only Effective = Y articles are allotted."
       back={{ label: "Allotment report", path: "allotment" }}
-      sampleNote="SAMPLE masters, earlier imports and audits. Your own RetailPilot CSVs can be uploaded here too: they are read in your browser only, nothing is sent or saved."
+      sampleNote={live ? null : "SAMPLE masters, earlier imports and audits. Your own RetailPilot CSVs can be uploaded here too: they are read in your browser only, nothing is sent or saved."}
     >
       <Steps at={done ? 4 : step} />
 
@@ -77,8 +106,9 @@ export function BulkAllotmentImport({ startWithSample = false }) {
         <Section title="1. Select the audit cycle">
           <Stack spacing={3} maxW="420px">
             <CycleSelect />
-            <Text fontSize="xs" color="gray.500">Stores in this cycle: {D.STORES.map((s) => s.name).join(", ")}. The warehouse is not part of the programme.</Text>
-            <Button colorScheme="purple" minH="48px" onClick={() => setStep(1)}>Continue</Button>
+            <Text fontSize="xs" color="gray.500">Stores in this cycle: {meta.stores.map((s) => s.name).join(", ") || "—"}. The warehouse is not part of the programme.</Text>
+            {!cycle.period_code && live ? <Text fontSize="sm" color="red.600">Create the audit cycle first (Audit Cycle Master).</Text> : null}
+            <Button colorScheme="purple" minH="48px" isDisabled={live && !cycle.period_code} onClick={() => setStep(1)}>Continue</Button>
           </Stack>
         </Section>
       )}
@@ -98,7 +128,8 @@ export function BulkAllotmentImport({ startWithSample = false }) {
           </Box>
           <Flex mt={3} gap={2} direction={{ base: "column", md: "row" }}>
             <Button colorScheme="purple" minH="48px" onClick={() => input.current.click()}>Choose files</Button>
-            <Button variant="outline" colorScheme="orange" minH="48px" onClick={useSample}>Use the SAMPLE upload (13 files)</Button>
+            {live ? null : <Button variant="outline" colorScheme="orange" minH="48px" onClick={useSample}>Use the SAMPLE upload (13 files)</Button>}
+            {busy ? <Text fontSize="sm" color="gray.600" alignSelf="center">Validating…</Text> : null}
           </Flex>
         </Section>
       )}
@@ -169,25 +200,43 @@ export function BulkAllotmentImport({ startWithSample = false }) {
               {fmtNum(result.summary.importable)} file(s), {fmtNum(result.summary.auditable)} auditable articles. Rejected and already-imported files are skipped. Audit history and approved incentives are never changed silently: an incentive affected by a corrected allotment goes back for reapproval.
             </Text>
             <Flex gap={2} direction={{ base: "column", md: "row" }}>
-              <Button colorScheme="purple" minH="48px" isDisabled={!result.canConfirm} onClick={() => setDone(true)}>Confirm import</Button>
-              <Button variant="outline" minH="48px" onClick={() => { setFiles([]); setStep(1); }}>Start again</Button>
+              <Button colorScheme="purple" minH="48px" isDisabled={!result.canConfirm || busy} isLoading={busy} onClick={confirm}>Confirm import</Button>
+              <Button variant="outline" minH="48px" onClick={() => { if (live && server) adapter.discardAllotment(server.batch_id).catch(() => {}); setFiles([]); setServer(null); setStep(1); }}>Start again</Button>
             </Flex>
             {!result.canConfirm ? <Text fontSize="xs" color="red.600" mt={2}>Resolve the conflicts first.</Text> : null}
           </Section>
         </>
       )}
 
-      {done && result ? <ImportResult result={result} go={go} /> : null}
+      {done && result ? <ImportResult result={result} go={go} live={live} /> : null}
     </Screen>
   );
 }
 
-function ImportResult({ result, go }) {
+/** The backend's validation, in the shape this screen draws. */
+function fromServer(v) {
+  return {
+    batch_id: v.batch_id,
+    summary: v.summary,
+    canConfirm: v.canConfirm,
+    conflicts: v.conflicts || [],
+    files: v.files.map((f) => ({
+      ...f,
+      ok: f.status !== "REJECTED",
+      outlet: f.store ? { name: f.store } : null,
+      employee: f.employee_id ? { employee_id: f.employee_id } : null,
+      match: f.match || { audited_own: 0, audited_by_other: 0, audited_not_allotted: 0, pending: f.auditable },
+      lines: (f.errors || []).map((e) => ({ line: e.line, article_id: e.article_id, errors: e.errors })),
+    })),
+  };
+}
+
+function ImportResult({ result, go, live }) {
   const imported = result.files.filter((f) => f.status === "VALID" || f.status === "WARNINGS");
   return (
     <>
       <Box p={3} mb={3} bg="green.50" border="1px solid" borderColor="green.200" borderRadius="md" fontSize="sm">
-        <b>Preview of the result.</b> In DNDS Connect this import would now be saved as a revision, with the original files kept, and progress recalculated. In the preview nothing is saved.
+        {live ? <><b>Imported.</b> Each file is saved as that auditor's revision (earlier revisions kept) and progress is recalculated.</> : <><b>Preview of the result.</b> In DNDS Connect this import would now be saved as a revision, with the original files kept, and progress recalculated. In the preview nothing is saved.</>}
       </Box>
       <Section title="Employee progress after import" subtitle="Allotted (Effective = Y) vs audited by the same auditor (Store + Auditor + Article)">
         <DataList rows={imported} keyOf={(f) => f.name} columns={[

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Badge, Box, Button, Flex, Heading, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
-import { adapter, useLoad, D } from "../data/adapter";
+import { adapter, useLoad, D, isLive } from "../data/adapter";
 import { available, pending, known, unavailable, ESTIMATE_BASIS_LABEL } from "../data/calc";
 import { EstimateBreakdown } from "./incentives";
 import { Cell, DataList, FilterBar, KV, Pill, Progress, SearchField, Section, SelectField, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtDateTime, fmtDate } from "../ui";
@@ -187,13 +187,19 @@ export function EmployeePerformance() {
 /** Individual employee view - bilingual labels, own data only. */
 export function MyStockAudit() {
   const { dataState, go, viewer } = useStockAudit();
-  const me = D.employees().find((e) => e.outlet_id === 7 && e.employee_id) || D.employees()[0];
-  const s = useLoad(() => adapter.employee({ state: dataState, rpUserId: me.rp_user_id }), [dataState]);
+  const [which, setWhich] = useState(0);
+  const s = useLoad(() => adapter.my({ state: dataState }), [dataState]);
+  const mine = (e) => go("articles", { user: e.rp_user_id, self: 1 });
   return (
-    <Screen title="My Stock Audit · என் ஸ்டாக் ஆடிட்" subtitle={viewer.self ? "Only your own figures are shown" : "Shown here as one sample employee"} actions={<Freshness />}>
+    <Screen title="My Stock Audit · என் ஸ்டாக் ஆடிட்" subtitle={isLive() || viewer.self ? "Only your own figures are shown" : "Shown here as one sample employee"} actions={<Freshness />}>
       <Loader s={s}>
-        {(e) => (
+        {(my) => !my.mapped || !my.employees.length ? (
+          <Box p={6} bg="gray.50" borderRadius="md" fontSize="sm">Your RetailPilot user is not mapped to your employee record yet, so no audits can be shown. Please ask HR to map it (RetailPilot Employee Mapping).</Box>
+        ) : (() => {
+          const e = my.employees[Math.min(which, my.employees.length - 1)];
+          return (
           <>
+            {my.employees.length > 1 ? <FilterBar><SelectField label="Store" value={String(which)} onChange={(v) => setWhich(Number(v))} options={my.employees.map((x, i) => ({ value: String(i), label: x.store }))} /></FilterBar> : null}
             <Section>
               <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
                 <Box><Heading size="md">{e.name}</Heading><Text fontSize="sm" color="gray.500">{e.designation} · {e.store} · {e.code}</Text></Box>
@@ -202,11 +208,11 @@ export function MyStockAudit() {
             </Section>
             <StatGrid cols={{ base: 2, md: 4 }}>
               <StatCard label="Articles allotted" tamil="ஒதுக்கப்பட்ட பொருட்கள்" c={e.allotted_c} />
-              <StatCard label="Audited today" tamil="இன்று சரிபார்த்தவை" c={e.today} accent={BRAND.orange} onClick={() => go("articles", { user: e.rp_user_id })} />
-              <StatCard label="Total audited" tamil="மொத்தம் சரிபார்த்தவை" c={e.audited} onClick={() => go("articles", { user: e.rp_user_id })} />
+              <StatCard label="Audited today" tamil="இன்று சரிபார்த்தவை" c={e.today} accent={BRAND.orange} onClick={() => mine(e)} />
+              <StatCard label="Total audited" tamil="மொத்தம் சரிபார்த்தவை" c={e.audited} onClick={() => mine(e)} />
               <StatCard label="Pending" tamil="மீதமுள்ளவை" c={e.pending_c} />
-              <StatCard label="Recounts" tamil="மறு எண்ணிக்கை" c={`${e.recount_done} / ${e.recount_required}`} kind="raw" sub="Done / required (5%)" onClick={() => go("articles", { user: e.rp_user_id })} />
-              <StatCard label="Counting accuracy" tamil="எண்ணிக்கை துல்லியம்" c={e.accuracy} kind="pct" accent={BRAND.orange} onClick={() => go("articles", { user: e.rp_user_id })} />
+              <StatCard label="Recounts" tamil="மறு எண்ணிக்கை" c={`${e.recount_done} / ${e.recount_required}`} kind="raw" sub="Done / required (5%)" onClick={() => mine(e)} />
+              <StatCard label="Counting accuracy" tamil="எண்ணிக்கை துல்லியம்" c={e.accuracy} kind="pct" accent={BRAND.orange} onClick={() => mine(e)} />
               <StatCard label="Estimated incentive" tamil="மதிப்பிடப்பட்ட ஊக்கத்தொகை" c={e.est.estimate} kind="money" accent={BRAND.orange} sub={ESTIMATE_BASIS_LABEL[e.est.basis]} />
               <StatCard label="If full allotment audited" tamil="முழு ஒதுக்கீடு முடிந்தால்" c={e.est.projected} kind="money" sub="At your accuracy so far" />
               <StatCard label="Calculated incentive" tamil="கணக்கிடப்பட்ட ஊக்கத்தொகை" c={e.estimated} kind="money" sub={e.provisional != null ? `If eligibility is confirmed: ${fmtMoney(e.provisional)}` : "After the full 5% recount sample"} />
@@ -219,10 +225,11 @@ export function MyStockAudit() {
                 <Text>Accuracy comes only from independent recounts of your articles (at least 5%). A genuine shortage that the recount confirms is counted as correct.</Text>
                 <Text>The estimate uses your recounts so far and can go up or down as more recounts come in. Only the approved amount is paid.</Text>
               </Stack>
-              <Button mt={3} size="sm" colorScheme="purple" onClick={() => go("articles", { user: e.rp_user_id })}>My articles</Button>
+              <Button mt={3} size="sm" colorScheme="purple" onClick={() => mine(e)}>My articles</Button>
             </Section>
           </>
-        )}
+          );
+        })()}
       </Loader>
     </Screen>
   );
@@ -230,12 +237,16 @@ export function MyStockAudit() {
 
 export function ArticleAuditDetails() {
   const { dataState, params } = useStockAudit();
-  const user = params.user || D.employees()[0].rp_user_id;
+  const self = Boolean(params.self);
+  const user = params.user || (isLive() ? null : D.employees()[0].rp_user_id);
   const [page, setPage] = useState(1);
-  const e = useLoad(() => adapter.employee({ state: dataState, rpUserId: user }), [dataState, user]);
-  const a = useLoad(() => adapter.articles({ state: dataState, rpUserId: user, page, size: 20 }), [dataState, user, page]);
+  const e = useLoad(
+    () => (!user ? Promise.resolve(null) : self ? adapter.my({ state: dataState }).then((m) => (m.employees || []).find((x) => x.rp_user_id === user) || null) : adapter.employee({ state: dataState, rpUserId: user })),
+    [dataState, user, self]
+  );
+  const a = useLoad(() => (user ? adapter.articles({ state: dataState, rpUserId: user, page, size: 20, self }) : Promise.resolve({ rows: [], total: 0, page: 1, pages: 1 })), [dataState, user, page, self]);
   return (
-    <Screen title="Article-wise Audit Details" back={{ label: "Employee performance", path: "employees" }} subtitle={e.data ? `${e.data.name || e.data.rp_name} · ${e.data.store}` : ""}>
+    <Screen title="Article-wise Audit Details" back={self ? { label: "My Stock Audit", path: "my" } : { label: "Employee performance", path: "employees" }} subtitle={e.data ? `${e.data.name || e.data.rp_name} · ${e.data.store}` : ""}>
       <Loader s={a}>
         {(d) => (
           <DataList

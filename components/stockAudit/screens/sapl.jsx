@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Badge, Box, Button, Flex, Heading, Input, NumberInput, NumberInputField, SimpleGrid, Slider, SliderFilledTrack, SliderThumb, SliderTrack, Stack, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Checkbox, Flex, Heading, Input, NumberInput, NumberInputField, Select, SimpleGrid, Slider, SliderFilledTrack, SliderThumb, SliderTrack, Stack, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
-import { adapter, useLoad, D } from "../data/adapter";
+import toast from "react-hot-toast";
+import { adapter, useLoad, isLive } from "../data/adapter";
 import { known, SAPL_DEFAULT_WEIGHTS, SAPL_PRIZE, saplPoints } from "../data/calc";
 import { Cell, DataList, KV, Pill, PreviewButton, Progress, RankMove, Section, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtDateTime, fmtDate } from "../ui";
 import { Screen, Loader, Freshness, NoAccess } from "./common";
@@ -130,36 +131,96 @@ export function StorePoints() {
   );
 }
 
-export function SeasonMaster() {
-  const { can } = useStockAudit();
-  const s = useLoad(() => adapter.seasons(), []);
-  const [deadline, setDeadline] = useState("2026-12-05");
+const TIE_KPIS = { accuracy: "Physical counting accuracy", completion: "Audit completion", recount: "Independent recount completion", participation: "Employee participation" };
+const PRIZE_METHOD = { EQUAL: "Equal shares (mapped staff who audited)", BY_ARTICLES_AUDITED: "In proportion to articles audited", MANUAL: "Entered by management" };
+const DEFAULT_RULES = {
+  qualification: { confirmed: false, requireAllKpisMeasured: true, minParticipationPct: 0 },
+  tie_breakers: { confirmed: false, order: ["accuracy", "completion", "recount", "participation"] },
+  prize: { confirmed: false, amount: SAPL_PRIZE, method: "EQUAL", excludeUnmapped: true, minArticlesAudited: 1 },
+};
+
+function SeasonEditor({ x, can, onSaved }) {
+  const [deadline, setDeadline] = useState(x.deadline || "2026-12-05");
+  const [rules, setRules] = useState(() => ({ ...DEFAULT_RULES, ...(x.rules || {}) }));
+  const set = (part, patch) => setRules({ ...rules, [part]: { ...rules[part], ...patch } });
+  const order = rules.tie_breakers.order;
+  const move = (i, d) => { const o = [...order]; const j = i + d; if (j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; set("tie_breakers", { order: o }); };
+  const save = async () => {
+    if (!isLive()) return toast("Preview only: nothing is saved.", { icon: "👁" });
+    try {
+      await adapter.updateSeason(x.season_id, { deadline, rules: { qualification: rules.qualification, tie_breakers: rules.tie_breakers, prize: rules.prize } });
+      toast.success("Season saved");
+      onSaved();
+    } catch (e) {
+      toast.error(e.message || "Could not save");
+    }
+  };
+  const off = !can(P.SAPL_MANAGE) || ["FINAL", "CLOSED"].includes(x.status);
   return (
-    <Screen title="Competition Season Master" subtitle="One complete stock audit cycle is one season. Every season starts with fresh points." actions={can(P.SAPL_MANAGE) ? <PreviewButton colorScheme="purple" label="New season">New season</PreviewButton> : null}>
+    <SimpleGrid columns={{ base: 1, md: 2 }} spacingX={6} spacingY={3}>
+      <Box>
+        <KV k="Audit cycle" v={x.period_code || "Q4 2026 Full Audit"} />
+        <KV k="Start" v={fmtDate(x.start)} />
+        <KV k="Common audit deadline (all stores)" v={<Input type="date" size="sm" h="38px" w="170px" value={deadline} onChange={(e) => setDeadline(e.target.value)} isDisabled={off} />} />
+        <KV k="Participating stores" v={`${x.stores.length}`} />
+        <KV k="Prize" v={`${fmtMoney(x.prize)} to the winning store`} />
+        <KV k="Scoring" v={x.scoring} />
+        <KV k="Standings" v="Provisional, recalculated daily" />
+        <KV k="Final ranking" v="After independent verification, finalised by a different person" />
+        <KV k="Status" v={<Pill color="green">{String(x.status).replace(/_/g, " ").toLowerCase()}</Pill>} />
+      </Box>
+      <Box>
+        <Text fontWeight={600} fontSize="sm">Qualification <Pill color="orange">pending your decision</Pill></Text>
+        <Checkbox mt={1} isChecked={rules.qualification.requireAllKpisMeasured} isDisabled={off} onChange={(e) => set("qualification", { requireAllKpisMeasured: e.target.checked })}>All four KPIs must be measured</Checkbox>
+        <Flex align="center" gap={2} mt={1} fontSize="sm"><Text>Minimum participation %</Text>
+          <NumberInput size="sm" w="90px" min={0} max={100} value={rules.qualification.minParticipationPct} isDisabled={off} onChange={(_, v) => set("qualification", { minParticipationPct: Number.isFinite(v) ? v : 0 })}><NumberInputField h="36px" /></NumberInput>
+        </Flex>
+        <Text fontWeight={600} fontSize="sm" mt={3}>Tie-breakers, in order <Pill color="orange">pending your decision</Pill></Text>
+        <Stack spacing={1} mt={1}>
+          {order.map((k, i) => (
+            <Flex key={k} align="center" gap={2} fontSize="sm">
+              <Text w="18px">{i + 1}.</Text><Text flex="1">{TIE_KPIS[k]}</Text>
+              <Button size="xs" variant="ghost" isDisabled={off || i === 0} onClick={() => move(i, -1)}>↑</Button>
+              <Button size="xs" variant="ghost" isDisabled={off || i === order.length - 1} onClick={() => move(i, 1)}>↓</Button>
+            </Flex>
+          ))}
+        </Stack>
+        <Text fontSize="xs" color="gray.500">Equal on every tie-breaker: shared rank, no winner until management decides.</Text>
+        <Text fontWeight={600} fontSize="sm" mt={3}>Prize distribution method <Pill color="orange">pending your decision</Pill></Text>
+        <Select size="sm" h="38px" mt={1} value={rules.prize.method} isDisabled={off} onChange={(e) => set("prize", { method: e.target.value })}>
+          {Object.entries(PRIZE_METHOD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </Select>
+        <Text fontSize="xs" color="gray.500" mt={1}>Unmapped staff are always excluded. Shares stay drafts: nothing is sent to payroll.</Text>
+      </Box>
+      {can(P.SAPL_MANAGE) ? <Box><Button size="sm" minH="38px" colorScheme="purple" isDisabled={off} onClick={save}>Save season settings</Button></Box> : null}
+    </SimpleGrid>
+  );
+}
+
+export function SeasonMaster() {
+  const { can, meta } = useStockAudit();
+  const [tick, setTick] = useState(0);
+  const s = useLoad(() => adapter.seasons(), [tick]);
+  const create = async () => {
+    if (!isLive()) return toast("Preview only: nothing is saved.", { icon: "👁" });
+    const c = meta.cycles[0];
+    if (!c) return toast.error("Create the audit period first");
+    try {
+      await adapter.createSeason({ period_code: c.period_code, deadline: c.deadline });
+      toast.success("Season created");
+      setTick(tick + 1);
+    } catch (e) {
+      toast.error(e.message || "Could not create the season");
+    }
+  };
+  return (
+    <Screen title="Competition Season Master" subtitle="One complete stock audit cycle is one season. Every season starts with fresh points; past seasons are kept." actions={can(P.SAPL_MANAGE) ? <Button size="sm" minH="38px" colorScheme="purple" onClick={create}>New season for the current audit period</Button> : null}>
       <Loader s={s}>
-        {(rows) => rows.map((x) => (
-          <Section key={x.season_no} title={`Season ${x.season_no} · ${x.name}`} subtitle="Duration and prize distribution are pending management approval">
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacingX={6}>
-              <Box>
-                <KV k="Audit cycle" v="Q4 2026 Full Audit" />
-                <KV k="Start" v={fmtDate(x.start)} />
-                <KV k="Common audit deadline (all five stores)" v={<Input type="date" size="sm" h="38px" w="170px" value={deadline} onChange={(e) => setDeadline(e.target.value)} isDisabled={!can(P.SAPL_MANAGE)} />} />
-                <KV k="Season end" v={<Pill color="orange">pending approval</Pill>} />
-                <KV k="Participating stores" v={`${x.stores.length}: ${D.STORES.map((st) => st.name).join(", ")}`} />
-                <KV k="Prize" v={`${fmtMoney(x.prize)} to the winning store`} />
-              </Box>
-              <Box>
-                <KV k="Scoring" v={x.scoring} />
-                <KV k="Standings" v="Provisional, recalculated daily" />
-                <KV k="Final ranking" v="After required independent verification + management approval" />
-                <KV k="Qualification / tie-breakers" v={<Pill color="orange">{x.qualification}</Pill>} />
-                <KV k="Status" v={<Pill color="green">in progress</Pill>} />
-                <KV k="Winning store" v={<Cell c={{ status: "PENDING", reason: "NOT_APPROVED" }} />} />
-                <KV k="Prize distribution" v={<Pill color="gray">method pending approval</Pill>} />
-              </Box>
-            </SimpleGrid>
+        {(rows) => (rows.length ? rows.map((x) => (
+          <Section key={x.season_id || x.season_no} title={`Season ${x.season_no} · ${x.name}`} subtitle="Qualification, tie-breakers and prize distribution stay configurable until management confirms them">
+            <SeasonEditor x={x} can={can} onSaved={() => setTick(tick + 1)} />
           </Section>
-        ))}
+        )) : <Box p={6} bg="gray.50" borderRadius="md" fontSize="sm">No season yet. A season is one audit period: create it with the button above.</Box>)}
       </Loader>
     </Screen>
   );
@@ -286,6 +347,7 @@ export function PrizeDistribution() {
 }
 
 export function CompetitionHistory() {
+  const { meta } = useStockAudit();
   return (
     <Screen title="Competition History & Championship Summary" sampleNote="No season has finished yet. This screen fills from final, management-approved standings only.">
       <StatGrid cols={{ base: 2, md: 4 }}>
@@ -295,7 +357,7 @@ export function CompetitionHistory() {
         <StatCard label="Most titles" c={{ status: "NOT_APPLICABLE", reason: "NO_DATA" }} />
       </StatGrid>
       <Section title="Championship table">
-        <DataList rows={D.STORES.map((s) => ({ ...s, titles: 0, podiums: 0 }))} keyOf={(r) => r.outlet_id} columns={[
+        <DataList rows={meta.stores.map((s) => ({ ...s, titles: 0, podiums: 0 }))} keyOf={(r) => r.outlet_id} columns={[
           { key: "name", label: "Store", primary: true },
           { key: "titles", label: "Titles", numeric: true, mobileRight: true, render: (r) => r.titles },
           { key: "podiums", label: "Podium finishes", numeric: true, render: (r) => r.podiums },

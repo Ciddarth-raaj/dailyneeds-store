@@ -38,9 +38,37 @@ export const sampleAdapter = {
   approvals: ({ state }) => delay(D.approvals(state)),
   policyVersions: () => delay(D.POLICY_VERSIONS),
   allotmentUploads: () => delay(D.ALLOTMENT_UPLOADS),
+  my: ({ state }) => {
+    const me = D.employees().find((e) => e.outlet_id === 7 && e.employee_id) || D.employees()[0];
+    return delay({ mapped: true, employees: [D.employeeView(me, state)] });
+  },
+  mapping: () =>
+    delay(D.employees().map((e) => ({ rp_user_id: e.rp_user_id, rp_name: e.rp_name, store: e.store, outlet_id: e.outlet_id, employee_id: e.employee_id, employee_name: e.name, designation: e.designation, mapped: e.employee_id != null }))),
+  cycles: () => delay(D.CYCLES),
+  mappingEmployees: () => delay(D.employees().filter((e) => e.employee_id).map((e) => ({ employee_id: e.employee_id, employee_name: e.name, store_id: e.outlet_id, designation: e.designation }))),
+  hrReport: async ({ state, date }) => ({
+    date,
+    cycle: D.CYCLES[0].name,
+    generatedAt: new Date().toISOString(),
+    lastSync: D.LAST_SYNC,
+    // the preview has no history: a past date prints cumulative figures as Unavailable
+    historical: date !== D.TODAY,
+    stores: await sampleAdapter.stores({ state }),
+    standings: await sampleAdapter.standings({ state }),
+    sample: true,
+  }),
 };
 
-export const adapter = sampleAdapter;
+/**
+ * The adapter screens use. The preview keeps the SAMPLE one; the DNDS
+ * Connect page switches to the live API adapter before rendering.
+ */
+let impl = sampleAdapter;
+export const setAdapter = (a) => {
+  impl = a;
+};
+export const isLive = () => impl.source === "LIVE";
+export const adapter = new Proxy({}, { get: (_, key) => impl[key] });
 
 /** Load with loading / error states. */
 export function useLoad(fn, deps) {

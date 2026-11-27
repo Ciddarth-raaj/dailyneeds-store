@@ -4,11 +4,17 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import StockAuditApp from "../../components/stockAudit/StockAuditApp";
 import { useUser } from "../../contexts/UserContext";
 import { P } from "../../components/stockAudit/permissions";
+import { setAdapter } from "../../components/stockAudit/data/adapter";
+import { apiAdapter } from "../../components/stockAudit/data/apiAdapter";
+
+// DNDS Connect reads LIVE data from the backend /stock-audit endpoints; the
+// standalone preview (preview/stock-audit) keeps the labelled SAMPLE adapter.
+setAdapter(apiAdapter);
 
 /**
  * /stock-audit/<screen> - the Stock Audit & SAPL module (components/stockAudit).
- * The screens read through components/stockAudit/data/adapter.js, which serves
- * clearly labelled SAMPLE data until the backend /stock-audit endpoints exist.
+ * The screens read through components/stockAudit/data/adapter.js, switched to
+ * the live API adapter here (backend routes/stock_audit.js).
  * The signed-in user's permission keys decide the menu; the backend enforces
  * every key and the branch scope again on each request.
  */

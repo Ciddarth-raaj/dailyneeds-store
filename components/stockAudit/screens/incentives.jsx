@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Badge, Box, Button, Flex, Heading, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import { useStockAudit } from "../context";
-import { adapter, useLoad, D } from "../data/adapter";
+import { adapter, useLoad, D, isLive } from "../data/adapter";
 import { known, MANAGEMENT, EMPLOYEE_SLABS, ESTIMATE_BASIS_LABEL } from "../data/calc";
 import { Cell, DataList, FilterBar, KV, Pill, PreviewButton, Progress, Section, SelectField, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtPct } from "../ui";
 import { Screen, Loader, StoreSelect, CycleSelect, useScope, NoAccess, useInitialOutlet } from "./common";
@@ -212,10 +212,11 @@ const CHAIN = [
 ];
 
 export function Approvals() {
-  const { dataState, viewer, can } = useStockAudit();
+  const { dataState, viewer, can, meta } = useStockAudit();
   const s = useLoad(() => adapter.approvals({ state: dataState }), [dataState]);
   return (
     <Screen title="Incentive Approval" subtitle="Only approved incentives can reach payroll. Nobody approves their own incentive. A changed amount needs reapproval.">
+      {isLive() ? <Box p={3} mb={3} bg="orange.50" border="1px solid" borderColor="orange.200" borderRadius="md" fontSize="sm"><b>Approval is not enabled in this phase.</b> The figures are shown for review only; nothing can be approved, revoked or sent to payroll yet.</Box> : null}
       <Section title="Approval chain">
         <SimpleGrid columns={{ base: 1, md: 5 }} spacing={2}>
           {CHAIN.map(([who, by]) => <Box key={who} p={2} bg="purple.50" borderRadius="md" fontSize="sm"><b>{who}</b><br /><Text as="span" fontSize="xs">{by}</Text></Box>)}
@@ -224,7 +225,7 @@ export function Approvals() {
       <Loader s={s}>
         {(rows) => (
           <DataList
-            rows={rows.filter((r) => !viewer.outlets || D.STORES.some((x) => viewer.outlets.includes(x.outlet_id) && x.name === r.store))}
+            rows={rows.filter((r) => !viewer.outlets || meta.stores.some((x) => viewer.outlets.includes(x.outlet_id) && x.name === r.store))}
             keyOf={(r) => r.id}
             renderDetail={(r) => {
               const own = viewer.id === "sm" && r.type === "Store Manager incentive" && r.store === "ECR";

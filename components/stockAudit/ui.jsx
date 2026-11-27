@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { isLive } from "./data/adapter";
 import {
   Badge, Box, Button, Collapse, Flex, Heading, HStack, IconButton, Input, Select, SimpleGrid, Stack, Table, Tbody, Td, Text, Th, Thead, Tooltip, Tr, useBreakpointValue,
 } from "@chakra-ui/react";
@@ -232,8 +233,9 @@ export function SearchField({ value, onChange, placeholder = "Search" }) {
 
 /** Every action in the preview: explains that nothing happens. */
 export function PreviewButton({ children, label, ...rest }) {
+  const msg = isLive() ? `${label || "Action"}: not enabled in this phase.` : `${label || "Action"}: preview only. Nothing is saved, approved, imported or paid.`;
   return (
-    <Button size="sm" minH="38px" onClick={() => toast(`${label || "Action"}: preview only. Nothing is saved, approved, imported or paid.`, { icon: "👁" })} {...rest}>
+    <Button size="sm" minH="38px" onClick={() => toast(msg, { icon: isLive() ? "🔒" : "👁" })} {...rest}>
       {children}
     </Button>
   );

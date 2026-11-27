@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import { useStockAudit } from "../context";
-import { adapter, D } from "../data/adapter";
+import { adapter, isLive } from "../data/adapter";
 import { consolidatedPdf, storePdf } from "../pdf/reports";
 import { Section, SelectField, BRAND } from "../ui";
-import { Screen, StoreSelect, CycleSelect, DateSelect, NoAccess } from "./common";
+import { Screen, StoreSelect, CycleSelect, DateSelect, NoAccess, useMeta } from "./common";
 import { P } from "../permissions";
 
 /** In the published preview, browser downloads are blocked: buttons open pre-built SAMPLE PDFs instead. */
@@ -22,23 +22,11 @@ async function loadLogo() {
   }
 }
 
-/** Assemble report data for a date. Only today can show cycle totals in the preview. */
-async function reportData(state, date) {
-  const stores = await adapter.stores({ state });
-  const standings = await adapter.standings({ state });
-  return {
-    date,
-    cycle: D.CYCLES[0].name,
-    generatedAt: new Date().toISOString(),
-    lastSync: D.LAST_SYNC,
-    // A past date needs the history kept by the sync; the preview has none, so
-    // cumulative totals print as Unavailable rather than today's figures.
-    historical: date !== D.TODAY,
-    stores,
-    standings,
-    sample: true,
-  };
-}
+/**
+ * Report data for a date: from the backend in DNDS Connect (team figures
+ * only - the API strips individual incentive amounts), sample in the preview.
+ */
+const reportData = (state, date) => adapter.hrReport({ state, date });
 
 const fileDate = (d) => d.split("-").reverse().join("-");
 
@@ -55,8 +43,10 @@ async function makeStore(state, date, outletId) {
 
 export function HrDownload() {
   const { dataState, can, go } = useStockAudit();
-  const [date, setDate] = useState(D.TODAY);
-  const [outlet, setOutlet] = useState("7");
+  const meta = useMeta();
+  const [date, setDate] = useState(meta.today);
+  const [outlet, setOutlet] = useState(String((meta.stores[0] || { outlet_id: 7 }).outlet_id));
+  const storeName = (meta.stores.find((s) => String(s.outlet_id) === outlet) || { name: "—" }).name;
   const [busy, setBusy] = useState(null);
   if (!can(P.HR_PDF)) return <Screen title="HR Daily PDF Reports"><NoAccess what="HR daily reports" /></Screen>;
   const pdfs = samplePdfs();
@@ -73,14 +63,14 @@ export function HrDownload() {
     }
   };
   return (
-    <Screen title="HR Daily PDF Reports" subtitle="Select date → download PDF → share in the team groups. PDF only." sampleNote="SAMPLE PDFs. They contain no salary or individual incentive amounts.">
+    <Screen title="HR Daily PDF Reports" subtitle="Select date → download PDF → share in the team groups. PDF only. No salary or individual incentive amounts." sampleNote="SAMPLE PDFs. They contain no salary or individual incentive amounts.">
       <Section title="1. Select">
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
           <DateSelect value={date} onChange={setDate} />
           <CycleSelect />
           <StoreSelect value={outlet} onChange={setOutlet} allowAll={false} label="Branch (store PDF)" />
         </SimpleGrid>
-        {date !== D.TODAY ? <Text fontSize="xs" color="orange.600" mt={2}>Past date: daily activity is shown; cycle totals print as Unavailable unless they can be rebuilt from sync history.</Text> : null}
+        {date !== meta.today ? <Text fontSize="xs" color="orange.600" mt={2}>{isLive() ? "Past date: figures as they stood at the end of that day (audits and recounts up to then); the allotment shown is the current revision." : "Past date: daily activity is shown; cycle totals print as Unavailable unless they can be rebuilt from sync history."}</Text> : null}
       </Section>
       <Section title="2. Download">
         <Stack spacing={3}>
@@ -94,8 +84,8 @@ export function HrDownload() {
           ) : (
             <>
               <Button size="lg" minH="52px" bg={BRAND.purple} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "all"} onClick={() => run("all", () => makeConsolidated(dataState, date))}>Download consolidated PDF (all five stores)</Button>
-              <Button size="lg" minH="52px" bg={BRAND.orange} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "one"} onClick={() => run("one", () => makeStore(dataState, date, outlet))}>Download store PDF · {D.STORES.find((s) => String(s.outlet_id) === outlet).name}</Button>
-              <Button size="lg" minH="52px" variant="outline" colorScheme="purple" isLoading={busy === "five"} onClick={() => run("five", () => Promise.all(D.STORES.map((s) => makeStore(dataState, date, s.outlet_id))))}>Download all five store PDFs</Button>
+              <Button size="lg" minH="52px" bg={BRAND.orange} color="white" _hover={{ opacity: 0.9 }} isLoading={busy === "one"} onClick={() => run("one", () => makeStore(dataState, date, outlet))}>Download store PDF · {storeName}</Button>
+              <Button size="lg" minH="52px" variant="outline" colorScheme="purple" isLoading={busy === "five"} onClick={() => run("five", () => Promise.all(meta.stores.map((s) => makeStore(dataState, date, s.outlet_id))))}>Download all {meta.stores.length} store PDFs</Button>
             </>
           )}
         </Stack>
@@ -133,14 +123,14 @@ function PdfPreview({ title, build, deps, sample }) {
 }
 
 export function ConsolidatedPdfPreview() {
-  const { dataState } = useStockAudit();
+  const { dataState, meta } = useStockAudit();
   const pdfs = samplePdfs();
-  return <PdfPreview title="Consolidated Daily PDF – Preview" build={() => makeConsolidated(dataState, D.TODAY)} deps={[dataState]} sample={pdfs ? (dataState === "allotment" ? pdfs.all : pdfs.allBefore) : null} />;
+  return <PdfPreview title="Consolidated Daily PDF – Preview" build={() => makeConsolidated(dataState, meta.today)} deps={[dataState]} sample={pdfs ? (dataState === "allotment" ? pdfs.all : pdfs.allBefore) : null} />;
 }
 
 export function StorePdfPreview() {
-  const { dataState, params } = useStockAudit();
-  const outlet = params.outlet || 7;
+  const { dataState, params, meta } = useStockAudit();
+  const outlet = params.outlet || (meta.stores[0] || { outlet_id: 7 }).outlet_id;
   const pdfs = samplePdfs();
-  return <PdfPreview title="Store Daily PDF – Preview" build={() => makeStore(dataState, D.TODAY, outlet)} deps={[dataState, outlet]} sample={pdfs ? (dataState === "allotment" ? pdfs.store : pdfs.storeBefore) : null} />;
+  return <PdfPreview title="Store Daily PDF – Preview" build={() => makeStore(dataState, meta.today, outlet)} deps={[dataState, outlet]} sample={pdfs ? (dataState === "allotment" ? pdfs.store : pdfs.storeBefore) : null} />;
 }
