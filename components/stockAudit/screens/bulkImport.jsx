@@ -16,7 +16,7 @@ const STATUS = {
   ALREADY_IMPORTED: ["gray", "Already imported"],
 };
 const Status = ({ s }) => <Badge colorScheme={STATUS[s][0]} textTransform="none" whiteSpace="normal">{STATUS[s][1]}</Badge>;
-const STEPS = ["Select audit cycle", "Upload all CSV files", "Validate", "Confirm import"];
+const STEPS = ["Season", "Upload all CSV files", "Validate", "Confirm import"];
 
 function Steps({ at }) {
   return (
@@ -32,10 +32,10 @@ function Steps({ at }) {
 
 /**
  * Screens 6 and 7: bulk import of RetailPilot allotment CSVs (one file per
- * auditor, as exported). Select cycle → upload all files → validate → confirm.
+ * auditor, as exported). Season → upload all files → validate → confirm.
  */
 export function BulkAllotmentImport({ startWithSample = false }) {
-  const { go } = useStockAudit();
+  const { go, seasonInfo } = useStockAudit();
   const [step, setStep] = useState(0);
   const [files, setFiles] = useState([]); // { name, text }
   const [sampleCtx, setSampleCtx] = useState(null);
@@ -44,7 +44,8 @@ export function BulkAllotmentImport({ startWithSample = false }) {
   const input = useRef();
   const meta = useMeta();
   const live = isLive();
-  const cycle = meta.cycles[0] || { name: "—", period_code: null };
+  // the selected season (current by default): its internal store cycles take the allotment
+  const cycle = seasonInfo ? { name: seasonInfo.name, period_code: seasonInfo.period_code } : meta.cycles[0] || { name: "—", period_code: null };
   const [server, setServer] = useState(null); // live: the backend's validation
   const [busy, setBusy] = useState(false);
 
@@ -63,7 +64,7 @@ export function BulkAllotmentImport({ startWithSample = false }) {
     const all = [...files, ...read];
     setFiles(all);
     if (live) {
-      // LIVE: the backend validates against the real cycle, Branch Master, mapping, earlier imports and audits
+      // LIVE: the backend validates against the season's store cycles, Branch Master, mapping, earlier imports and audits
       setBusy(true);
       try {
         setServer(fromServer(await adapter.validateAllotment({ period_code: cycle.period_code, files: all })));
@@ -103,11 +104,11 @@ export function BulkAllotmentImport({ startWithSample = false }) {
       <Steps at={done ? 4 : step} />
 
       {step === 0 && (
-        <Section title="1. Select the audit cycle">
+        <Section title="1. Season">
           <Stack spacing={3} maxW="420px">
             <CycleSelect />
-            <Text fontSize="xs" color="gray.500">Stores in this cycle: {meta.stores.map((s) => s.name).join(", ") || "—"}. The warehouse is not part of the programme.</Text>
-            {!cycle.period_code && live ? <Text fontSize="sm" color="red.600">Create the audit cycle first (Audit Cycle Master).</Text> : null}
+            <Text fontSize="xs" color="gray.500">Stores in this season: {meta.stores.map((s) => s.name).join(", ") || "—"}. The warehouse is not part of the programme.</Text>
+            {!cycle.period_code && live ? <Text fontSize="sm" color="red.600">No season yet: an administrator creates it in Season Master.</Text> : null}
             <Button colorScheme="purple" minH="48px" isDisabled={live && !cycle.period_code} onClick={() => setStep(1)}>Continue</Button>
           </Stack>
         </Section>

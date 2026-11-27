@@ -5,22 +5,41 @@ import {
 import { StockAuditProvider, useStockAudit } from "./context";
 import { SCREENS, GROUPS, allowed } from "./registry";
 import { VIEWERS } from "./permissions";
-import { BRAND } from "./ui";
+import { BRAND, fmtDate } from "./ui";
+import { NoAccess } from "./screens/common";
+
+/** The season every screen works on: current by default, earlier ones for reports. */
+function SeasonPicker() {
+  const { seasons, season, chooseSeason } = useStockAudit();
+  if (!seasons.length) return null;
+  return (
+    <Flex px={{ base: 4, md: 5 }} pb={2} gap={2} align="center" minW={0}>
+      <Text fontSize="xs" color="gray.500" flexShrink={0}>Season</Text>
+      <Select size="sm" h="36px" maxW={{ base: "100%", md: "420px" }} value={season || ""} onChange={(e) => chooseSeason(e.target.value)} aria-label="Season">
+        {seasons.map((x) => (
+          <option key={x.period_code} value={x.period_code}>
+            {x.name} · {fmtDate(x.start_date)} – {fmtDate(x.end_date)}{x.current ? " (current)" : ""}
+          </option>
+        ))}
+      </Select>
+    </Flex>
+  );
+}
 
 function Home() {
-  const { go, can } = useStockAudit();
+  const { go, can, preview } = useStockAudit();
   return (
     <Box>
       <Heading size="md" mb={1}>Stock Audit & Premier League</Heading>
-      <Text fontSize="sm" color="gray.500" mb={4}>All 31 screens of the preview. Screens you cannot open with the selected role are greyed out.</Text>
+      <Text fontSize="sm" color="gray.500" mb={4}>Every screen of the module. In the preview, screens the selected role cannot open are greyed out.</Text>
       {typeof window !== "undefined" && window.__SA_GALLERY__ ? (
         <Button as="a" href={window.__SA_GALLERY__} target="_blank" rel="noreferrer" size="sm" mb={4} colorScheme="orange" variant="outline">Mobile & desktop screenshots, sample PDFs</Button>
       ) : null}
-      {GROUPS.map((g) => (
+      {GROUPS.filter((g) => preview || SCREENS.some((s) => s.group === g && allowed(s, can))).map((g) => (
         <Box key={g} mb={4}>
           <Text fontWeight={700} color={BRAND.purple} mb={2}>{g}</Text>
           <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={2}>
-            {SCREENS.filter((s) => s.group === g).map((s) => {
+            {SCREENS.filter((s) => s.group === g && (preview || allowed(s, can))).map((s) => {
               const ok = allowed(s, can);
               return (
                 <Button key={s.path} justifyContent="flex-start" variant="outline" minH="48px" h="auto" py={2} whiteSpace="normal" textAlign="left" colorScheme={ok ? "purple" : "gray"} opacity={ok ? 1 : 0.5} onClick={() => go(s.path)}>
@@ -36,7 +55,7 @@ function Home() {
 }
 
 function Shell() {
-  const { path, go, can, preview, viewer, setViewerId, dataState, setDataState } = useStockAudit();
+  const { path, go, can, preview, viewer, setViewerId, dataState, setDataState, season, seasonReady } = useStockAudit();
   const [menu, setMenu] = useState(false);
   const screen = SCREENS.find((s) => s.path === path);
   const groupScreens = screen ? SCREENS.filter((s) => s.group === screen.group && allowed(s, can)) : [];
@@ -64,6 +83,7 @@ function Shell() {
             </Select>
           </Flex>
         ) : null}
+        <SeasonPicker />
         {groupScreens.length > 1 ? (
           <Flex px={{ base: 4, md: 5 }} pb={2} gap={1} overflowX="auto" css={{ scrollbarWidth: "none" }}>
             {groupScreens.map((s) => (
@@ -73,7 +93,8 @@ function Shell() {
         ) : null}
       </Box>
       <Box px={{ base: 4, md: 5 }} py={4} maxW="1280px" mx="auto">
-        <C />
+        {screen && !allowed(screen, can) ? <NoAccess what={`"${screen.title}"`} />
+          : seasonReady ? <C key={season || "no-season"} /> : <Text fontSize="sm" color="gray.500">Loading the season…</Text>}
       </Box>
       <Drawer isOpen={menu} placement="left" onClose={() => setMenu(false)} size="xs">
         <DrawerOverlay />

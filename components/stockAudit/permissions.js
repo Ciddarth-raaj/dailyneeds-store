@@ -29,12 +29,19 @@ export const P = {
   EXCLUSIONS_APPROVE: "approve_stock_audit_exclusions",
 };
 
+/**
+ * Not a DNDS permission key: "the caller is an administrator" (user type 2).
+ * Seasons, and the internal audit cycles behind them, are administrator-only.
+ * Live: from /meta (can_manage_seasons); preview: the Admin persona.
+ */
+export const ADMIN = "__stock_audit_admin__";
+
 export const PERMISSION_LABELS = {
   [P.OWN]: "Stock Audit: My performance and incentive (self-service)",
   [P.STORE]: "Stock Audit: Store-wise monitoring (own branch)",
   [P.COMPANY]: "Stock Audit: Company-wide monitoring (all five stores)",
   [P.MAPPING]: "Stock Audit: RetailPilot employee mapping",
-  [P.CYCLES]: "Stock Audit: Manage audit cycles",
+  [P.CYCLES]: "Stock Audit: Eligible headcount, snapshot and exclusion requests",
   [P.IMPORT]: "Stock Audit: Import article allotment (RetailPilot CSV)",
   [P.IMPORT_APPROVE]: "Stock Audit: Approve allotment imports",
   [P.VERIFY]: "Stock Audit: Review recount verification",

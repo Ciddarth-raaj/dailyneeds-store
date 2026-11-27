@@ -5,7 +5,7 @@ import { useStockAudit } from "../context";
 import { SampleBanner, SelectField, BRAND, fmtDateTime } from "../ui";
 import { isLive } from "../data/adapter";
 
-/** Cycles, stores, today, last sync (see context.jsx). */
+/** Seasons, stores, today, last sync (see context.jsx). */
 export const useMeta = () => useStockAudit().meta;
 
 export function Screen({ title, subtitle, actions, children, back, sampleNote }) {
@@ -45,12 +45,16 @@ export function StoreSelect({ value, onChange, allowAll = true, label = "Branch"
   return <SelectField label={label} value={value} onChange={onChange} options={options} />;
 }
 
-export function CycleSelect({ value, onChange = () => {} }) {
-  const { meta } = useStockAudit();
-  const cycles = meta.cycles || [];
-  const v = value != null ? value : cycles[0] ? String(cycles[0].cycle_id) : "";
-  return <SelectField label="Audit cycle" value={v} onChange={onChange} options={cycles.length ? cycles.map((c) => ({ value: String(c.cycle_id), label: c.name })) : [{ value: "", label: "No audit cycle yet" }]} />;
+/** The season the module works on (the same choice as the header picker). */
+export function SeasonSelect() {
+  const { seasons, season, chooseSeason } = useStockAudit();
+  return (
+    <SelectField label="Season" value={season || ""} onChange={chooseSeason}
+      options={seasons.length ? seasons.map((x) => ({ value: x.period_code, label: `${x.name}${x.current ? " (current)" : ""}` })) : [{ value: "", label: "No season yet" }]} />
+  );
 }
+/** @deprecated name: the user-facing record is the season. */
+export const CycleSelect = SeasonSelect;
 
 /** Today back to the programme start (25 Nov 2026). */
 export function DateSelect({ value, onChange }) {

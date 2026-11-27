@@ -20,7 +20,7 @@ export function AllotmentReport() {
       actions={<Button size="sm" colorScheme="purple" onClick={() => go("import")}>Import allotment CSVs</Button>}
     >
       {!isLive() && dataState !== "allotment" ? (
-        <Box p={3} mb={3} bg="gray.50" borderRadius="md" fontSize="sm">No allotment imported for this cycle yet: allotted, pending and completion stay <b>Unavailable</b>. Actual audits are shown.</Box>
+        <Box p={3} mb={3} bg="gray.50" borderRadius="md" fontSize="sm">No allotment imported for this season yet: allotted, pending and completion stay <b>Unavailable</b>. Actual audits are shown.</Box>
       ) : null}
       <FilterBar>
         <StoreSelect value={outlet} onChange={(v) => { setOutlet(v); setPage(1); }} />

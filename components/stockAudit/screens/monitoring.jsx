@@ -23,7 +23,7 @@ export function CompanyDashboard() {
       <FilterBar>
         <CycleSelect />
         <SelectField label="Category" value="" onChange={() => {}} options={[{ value: "", label: "All categories" }, { value: "f", label: "Foodgrains, Oils & Masala" }, { value: "b", label: "Beverages" }]} />
-        <SelectField label="Date" value="today" onChange={() => {}} options={[{ value: "today", label: "Today" }, { value: "cycle", label: "Whole cycle" }]} />
+        <SelectField label="Date" value="today" onChange={() => {}} options={[{ value: "today", label: "Today" }, { value: "cycle", label: "Whole season" }]} />
       </FilterBar>
       <Loader s={s}>
         {(stores) => {

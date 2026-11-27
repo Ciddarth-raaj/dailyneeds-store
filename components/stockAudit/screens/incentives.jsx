@@ -187,7 +187,7 @@ export function CalculationPreview() {
                 <StatCard label="Eligibility review" c={by("PENDING_ELIGIBILITY_REVIEW")} />
                 <StatCard label="Employee incentives (calculated only)" c={calc.reduce((t, e) => t + e.estimated.value, 0)} kind="money" />
               </StatGrid>
-              <Section title="Budget view" subtitle="Indicative maximums for one complete cycle and one SAPL prize - not caps">
+              <Section title="Budget view" subtitle="Indicative maximums for one complete season and one SAPL prize - not caps">
                 <KV k="Employee incentives (decided)" v={fmtMoney(calc.reduce((t, e) => t + e.estimated.value, 0))} />
                 <KV k="Supervisors (decided KPIs)" v={fmtMoney(mg.reduce((t, x) => t + x.supervisor.decidedAmount, 0))} />
                 <KV k="Store Managers (decided KPIs)" v={fmtMoney(mg.reduce((t, x) => t + x.storeManager.decidedAmount, 0))} />
@@ -259,7 +259,7 @@ export function IncentiveHistory() {
     { at: "2026-11-27 09:00", what: "Confirmed amounts recorded: ₹1.10 / ₹1.00 / ₹0.50; ₹1,000 / ₹1,500 / ₹2,000", by: "Management", ref: "policy v1" },
   ];
   return (
-    <Screen title="Incentive History" subtitle="Every calculation, approval, revocation and payroll hand-over, with its audit cycle and policy version.">
+    <Screen title="Incentive History" subtitle="Every calculation, approval, revocation and payroll hand-over, with its season and policy version.">
       <DataList rows={rows} keyOf={(r) => r.at} columns={[
         { key: "what", label: "Event", primary: true },
         { key: "at", label: "When", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.at} · {r.by}</Text> },

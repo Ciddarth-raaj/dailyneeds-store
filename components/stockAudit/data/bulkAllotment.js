@@ -109,7 +109,7 @@ export function readAuditorFile(name, text) {
 }
 
 /**
- * Validate a whole upload for one audit cycle.
+ * Validate a whole upload for one season (its store cycles).
  * @param files    readAuditorFile() results
  * @param ctx.cycleStores   Set of RetailPilot store IDs in the cycle (warehouse never)
  * @param ctx.storeOf       (rpStoreId) => { outlet_id, name } | null      Branch Master
@@ -129,7 +129,7 @@ export function validateBatch(files, ctx) {
     const store = ctx.storeOf(f.store_id);
     f.outlet = store;
     if (!store) f.issues.push(`Store ${f.store_id} is not in Branch Master`);
-    else if (!ctx.cycleStores.has(f.store_id)) f.issues.push(`${store.name} is not taking part in this audit cycle`);
+    else if (!ctx.cycleStores.has(f.store_id)) f.issues.push(`${store.name} is not taking part in this season`);
     if (fpSeen.has(f.fp)) f.issues.push(`Same content as ${fpSeen.get(f.fp)} in this upload`);
     else fpSeen.set(f.fp, f.name);
     if (auditorSeen.has(key(f))) {

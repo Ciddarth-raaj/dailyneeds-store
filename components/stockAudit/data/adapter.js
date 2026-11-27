@@ -58,7 +58,7 @@ export const sampleAdapter = {
         snapshot: s.outlet_id === 7 ? { employee_count: s.eligible_employees, taken_by_name: "HR Manager", taken_at: "2026-11-25T09:00:00+05:30" } : null,
         eligible: [...s.employees.filter((e) => e.employee_id).map((e) => ({ employee_id: e.employee_id, name: e.name, designation: e.designation, participated: e.audited > 0 })), ...s.participation_detail.not_participated.map((e) => ({ ...e, designation: e.designation_id === 4 ? "Cashier" : "Customer Service Associate", participated: false }))],
         participation: s.participation, participation_detail: s.participation_detail,
-        exclusions: s.outlet_id === 5 ? [{ id: 1, employee_id: 3999, employee_name: "Revathi K", reason: "Maternity leave for the whole cycle", status: "APPROVED", requested_by_name: "Store HR", requested_at: "2026-11-25T10:00:00+05:30", decided_by_name: "HR Manager", decided_at: "2026-11-25T12:00:00+05:30" }] : [],
+        exclusions: s.outlet_id === 5 ? [{ id: 1, employee_id: 3999, employee_name: "Revathi K", reason: "Maternity leave for the whole season", status: "APPROVED", requested_by_name: "Store HR", requested_at: "2026-11-25T10:00:00+05:30", decided_by_name: "HR Manager", decided_at: "2026-11-25T12:00:00+05:30" }] : [],
       })),
     });
   },

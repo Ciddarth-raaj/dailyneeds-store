@@ -6,7 +6,7 @@
  *
  * NEVER includes salary or individual incentive amounts (these are shared in
  * team groups). Missing figures print as "Pending" / "Unavailable", never 0.
- * Daily activity (the report date) is kept apart from cumulative cycle totals.
+ * Daily activity (the report date) is kept apart from cumulative season totals.
  * SAPL ranks are printed as PROVISIONAL until final approval.
  *
  * Pure apart from jsPDF: give it the data and the logo as a data URL.
@@ -131,7 +131,7 @@ export function consolidatedPdf(data, { logo } = {}) {
   y = figures(doc, y, [
     ["Articles allotted", data.historical ? "Unavailable" : allKnown("allotted") ? num(sum((s) => s.allotted.value)) : "Unavailable"],
     ["Audited on this date", num(sum((s) => s.audited_today))],
-    ["Total audited (cycle)", data.historical ? "Unavailable" : num(sum((s) => s.audited))],
+    ["Total audited (season)", data.historical ? "Unavailable" : num(sum((s) => s.audited))],
     ["Pending articles", data.historical ? "Unavailable" : allKnown("pending") ? num(sum((s) => s.pending.value)) : "Unavailable"],
     ["Recounts done / required", data.historical ? "Unavailable" : `${num(sum((s) => s.recount_done))} / ${num(sum((s) => s.recount_required))}`],
     ["SAPL winning store prize", "Rs. 10,000"],
@@ -145,7 +145,7 @@ export function consolidatedPdf(data, { logo } = {}) {
     y = figures(doc, y, [
       ["Articles allotted", cum(s.allotted)],
       ["Audited on this date", num(s.audited_today)],
-      ["Total audited (cycle)", data.historical ? "Unavailable" : num(s.audited)],
+      ["Total audited (season)", data.historical ? "Unavailable" : num(s.audited)],
       ["Pending articles", cum(s.pending)],
       ["Completion", data.historical ? "Unavailable" : cellText(s.completion, "pct")],
       ["Counting accuracy", data.historical ? "Unavailable" : cellText(s.accuracy, "pct")],
@@ -192,7 +192,7 @@ export function storePdf(data, { logo } = {}) {
   y = figures(doc, y, [
     ["Articles allotted", H ? "Unavailable" : cellText(s.allotted)],
     ["Audited on this date", num(s.audited_today)],
-    ["Total audited (cycle)", H ? "Unavailable" : num(s.audited)],
+    ["Total audited (season)", H ? "Unavailable" : num(s.audited)],
     ["Pending articles", H ? "Unavailable" : cellText(s.pending)],
     ["Completion", H ? "Unavailable" : cellText(s.completion, "pct")],
     ["Counting accuracy", H ? "Unavailable" : cellText(s.accuracy, "pct")],

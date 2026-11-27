@@ -1,4 +1,4 @@
-import { P } from "./permissions";
+import { P, ADMIN } from "./permissions";
 import { CompanyDashboard, StoreDashboard, EmployeePerformance, MyStockAudit, ArticleAuditDetails } from "./screens/monitoring";
 import { AllotmentReport, AllotmentHistory } from "./screens/allotment";
 import { BulkAllotmentImport, BulkImportValidation } from "./screens/bulkImport";
@@ -21,7 +21,7 @@ export const SCREENS = [
   { no: 9, path: "articles", group: "Monitoring", title: "Article-wise Audit Details", perm: [P.STORE, P.OWN], C: ArticleAuditDetails },
   { no: 10, path: "verification", group: "Monitoring", title: "Recount & Verification", perm: P.STORE, C: RecountVerification },
   { no: 11, path: "variance", group: "Monitoring", title: "Shortage & Excess", perm: P.STORE, C: VarianceReport },
-  { no: 12, path: "cycles", group: "Administration", title: "Audit Cycle Master", perm: P.CYCLES, C: CycleMaster },
+  { no: 12, path: "cycles", group: "Administration", title: "Internal Audit Cycles (admin, read-only)", perm: ADMIN, C: CycleMaster },
   { no: 13, path: "mapping", group: "Administration", title: "RetailPilot Employee Mapping", perm: P.MAPPING, C: EmployeeMapping },
   { no: 14, path: "sync", group: "Administration", title: "Sync & Exceptions", perm: P.SYNC, C: SyncReport },
   { no: 15, path: "incentives", group: "Incentives", title: "Employee Incentives", perm: P.STORE, C: EmployeeIncentives },
@@ -34,7 +34,7 @@ export const SCREENS = [
   { no: 22, path: "policy", group: "Administration", title: "Incentive Policy Settings", perm: P.POLICY, C: PolicySettings },
   { no: 23, path: "sapl", group: "Premier League", title: "SAPL Leaderboard", perm: P.SAPL_VIEW, C: Leaderboard },
   { no: 24, path: "sapl-store", group: "Premier League", title: "Store Points Breakdown", perm: P.SAPL_VIEW, C: StorePoints },
-  { no: 25, path: "seasons", group: "Premier League", title: "Season Master", perm: P.SAPL_MANAGE, C: SeasonMaster },
+  { no: 25, path: "seasons", group: "Premier League", title: "Season Master", perm: [P.SAPL_MANAGE, ADMIN], C: SeasonMaster },
   { no: 26, path: "sapl-scoring", group: "Premier League", title: "Scoring Settings", perm: P.SAPL_MANAGE, C: ScoringSettings },
   { no: 27, path: "prize", group: "Premier League", title: "Prize Distribution", perm: P.SAPL_PRIZE, C: PrizeDistribution },
   { no: 28, path: "sapl-history", group: "Premier League", title: "History & Championships", perm: P.SAPL_VIEW, C: CompetitionHistory },

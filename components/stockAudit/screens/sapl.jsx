@@ -6,7 +6,7 @@ import { adapter, useLoad, isLive } from "../data/adapter";
 import { known, SAPL_DEFAULT_WEIGHTS, SAPL_PRIZE, saplPoints } from "../data/calc";
 import { Cell, DataList, KV, Pill, PreviewButton, Progress, RankMove, Section, StatCard, StatGrid, BRAND, fmtMoney, fmtNum, fmtDateTime, fmtDate } from "../ui";
 import { Screen, Loader, Freshness, NoAccess } from "./common";
-import { P } from "../permissions";
+import { P, ADMIN } from "../permissions";
 
 const MEDAL = {
   1: { bg: "linear-gradient(135deg,#F9D976,#E6B325)", border: "#D4A017", label: "🏆", text: "#5C4300" },
@@ -139,35 +139,49 @@ const DEFAULT_RULES = {
   prize: { confirmed: false, amount: SAPL_PRIZE, method: "EQUAL", excludeUnmapped: true, minArticlesAudited: 1 },
 };
 
-function SeasonEditor({ x, can, onSaved }) {
-  const [deadline, setDeadline] = useState(x.deadline || "2026-12-05");
+/** One season: dates, prize and the still-configurable rules. Editable by administrators only; the server refuses changes that would rewrite results. */
+function SeasonEditor({ x, can, today, onSaved }) {
+  const admin = can(ADMIN);
+  const [form, setForm] = useState({ name: x.name || "", start_date: x.start || "", end_date: x.end || "", deadline: x.deadline || "", prize_amount: x.prize == null ? "" : String(Number(x.prize)) });
   const [rules, setRules] = useState(() => ({ ...DEFAULT_RULES, ...(x.rules || {}) }));
   const set = (part, patch) => setRules({ ...rules, [part]: { ...rules[part], ...patch } });
+  const f = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const order = rules.tie_breakers.order;
   const move = (i, d) => { const o = [...order]; const j = i + d; if (j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; set("tie_breakers", { order: o }); };
+  const final = ["FINAL", "CLOSED"].includes(x.status);
+  const datesFixed = final || !["DRAFT", "OPEN"].includes(x.status);
+  const off = !admin || final;
+  // a date that has already passed cannot move (the server checks this too)
+  const passed = (d) => Boolean(d && today && d < today);
   const save = async () => {
     if (!isLive()) return toast("Preview only: nothing is saved.", { icon: "👁" });
+    const body = { name: form.name, prize_amount: form.prize_amount, rules: { qualification: rules.qualification, tie_breakers: rules.tie_breakers, prize: { ...rules.prize, amount: Number(form.prize_amount) || rules.prize.amount } } };
+    if (!datesFixed) Object.assign(body, { start_date: form.start_date, end_date: form.end_date, deadline: form.deadline });
     try {
-      await adapter.updateSeason(x.season_id, { deadline, rules: { qualification: rules.qualification, tie_breakers: rules.tie_breakers, prize: rules.prize } });
+      await adapter.updateSeason(x.season_id, body);
       toast.success("Season saved");
       onSaved();
     } catch (e) {
       toast.error(e.message || "Could not save");
     }
   };
-  const off = !can(P.SAPL_MANAGE) || ["FINAL", "CLOSED"].includes(x.status);
+  const dateInput = (k, label) => (
+    <KV k={label} v={admin ? <Input type="date" size="sm" h="38px" w="170px" value={form[k]} onChange={f(k)} isDisabled={off || datesFixed || passed(k === "start_date" ? x.start : k === "end_date" ? x.end : x.deadline)} /> : fmtDate(form[k])} />
+  );
   return (
     <SimpleGrid columns={{ base: 1, md: 2 }} spacingX={6} spacingY={3}>
       <Box>
-        <KV k="Audit cycle" v={x.period_code || "Q4 2026 Full Audit"} />
-        <KV k="Start" v={fmtDate(x.start)} />
-        <KV k="Common audit deadline (all stores)" v={<Input type="date" size="sm" h="38px" w="170px" value={deadline} onChange={(e) => setDeadline(e.target.value)} isDisabled={off} />} />
-        <KV k="Participating stores" v={`${x.stores.length}`} />
-        <KV k="Prize" v={`${fmtMoney(x.prize)} to the winning store`} />
-        <KV k="Scoring" v={x.scoring} />
+        {admin ? <KV k="Season name" v={<Input size="sm" h="38px" maxW="240px" value={form.name} onChange={f("name")} isDisabled={off} />} /> : null}
+        {dateInput("start_date", "Start date")}
+        {dateInput("end_date", "End date")}
+        {dateInput("deadline", "Audit completion deadline (all stores)")}
+        <KV k="Participating stores" v={`${x.stores.length} retail stores (warehouse excluded)`} />
+        <KV k="Winning store prize" v={admin ? <Input size="sm" h="38px" w="140px" type="number" min={1} value={form.prize_amount} onChange={f("prize_amount")} isDisabled={off} /> : `${fmtMoney(x.prize)} to the winning store`} />
+        <KV k="Points" v={x.scoring} />
         <KV k="Standings" v="Provisional, recalculated daily" />
         <KV k="Final ranking" v="After independent verification, finalised by a different person" />
         <KV k="Status" v={<Pill color="green">{String(x.status).replace(/_/g, " ").toLowerCase()}</Pill>} />
+        {admin && !final ? <Text fontSize="xs" color="gray.500" mt={2}>Dates that have passed cannot move, and nothing can move into the past, so earlier results never change. The start is fixed once allotments are imported; all dates are fixed once incentives are approved or verification starts.</Text> : null}
       </Box>
       <Box>
         <Text fontWeight={600} fontSize="sm">Qualification <Pill color="orange">pending your decision</Pill></Text>
@@ -192,36 +206,66 @@ function SeasonEditor({ x, can, onSaved }) {
         </Select>
         <Text fontSize="xs" color="gray.500" mt={1}>Unmapped staff are always excluded. Shares stay drafts: nothing is sent to payroll.</Text>
       </Box>
-      {can(P.SAPL_MANAGE) ? <Box><Button size="sm" minH="38px" colorScheme="purple" isDisabled={off} onClick={save}>Save season settings</Button></Box> : null}
+      {admin && !final ? <Box><Button size="sm" minH="40px" colorScheme="purple" onClick={save}>Save season</Button></Box> : null}
     </SimpleGrid>
   );
 }
 
-export function SeasonMaster() {
-  const { can, meta } = useStockAudit();
-  const [tick, setTick] = useState(0);
-  const s = useLoad(() => adapter.seasons(), [tick]);
+/** New season (administrators): creates the season and its internal store cycles together. */
+function NewSeason({ onCreated }) {
+  const { meta } = useStockAudit();
+  const [form, setForm] = useState({ name: "", start_date: "", end_date: "", deadline: "", prize_amount: String(SAPL_PRIZE) });
+  const f = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const create = async () => {
     if (!isLive()) return toast("Preview only: nothing is saved.", { icon: "👁" });
-    const c = meta.cycles[0];
-    if (!c) return toast.error("Create the audit period first");
+    if (!form.start_date || !form.end_date || !form.deadline) return toast.error("Enter the start date, end date and completion deadline");
     try {
-      await adapter.createSeason({ period_code: c.period_code, deadline: c.deadline });
-      toast.success("Season created");
-      setTick(tick + 1);
+      await adapter.createSeason(form);
+      toast.success("Season created for all five retail stores");
+      setForm({ name: "", start_date: "", end_date: "", deadline: "", prize_amount: String(SAPL_PRIZE) });
+      onCreated();
     } catch (e) {
       toast.error(e.message || "Could not create the season");
     }
   };
   return (
-    <Screen title="Competition Season Master" subtitle="One complete stock audit cycle is one season. Every season starts with fresh points; past seasons are kept." actions={can(P.SAPL_MANAGE) ? <Button size="sm" minH="38px" colorScheme="purple" onClick={create}>New season for the current audit period</Button> : null}>
+    <Section title="New season" subtitle="Creates the season for all five retail stores (warehouse excluded). Seasons cannot overlap: one day of audits belongs to one season only.">
+      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
+        <Box><Text fontSize="xs" mb={1}>Season name</Text><Input size="sm" h="40px" placeholder="Season 2" value={form.name} onChange={f("name")} /></Box>
+        <Box><Text fontSize="xs" mb={1}>Start date</Text><Input size="sm" h="40px" type="date" min={meta.today} value={form.start_date} onChange={f("start_date")} /></Box>
+        <Box><Text fontSize="xs" mb={1}>End date</Text><Input size="sm" h="40px" type="date" value={form.end_date} onChange={f("end_date")} /></Box>
+        <Box><Text fontSize="xs" mb={1}>Audit completion deadline</Text><Input size="sm" h="40px" type="date" value={form.deadline} onChange={f("deadline")} /></Box>
+        <Box><Text fontSize="xs" mb={1}>Winning store prize (₹)</Text><Input size="sm" h="40px" type="number" min={1} value={form.prize_amount} onChange={f("prize_amount")} /></Box>
+      </SimpleGrid>
+      <Text fontSize="xs" color="gray.500" mt={2}>Points are fixed: completion 35, accuracy 40, independent recount 20, participation 5.</Text>
+      <Button mt={3} size="sm" minH="40px" colorScheme="purple" onClick={create}>Create season</Button>
+    </Section>
+  );
+}
+
+/**
+ * Screen 25: the season is the ONE record of the programme (its internal
+ * store cycles are created and changed with it). Administrators create and
+ * change seasons; everyone else sees them read-only.
+ */
+export function SeasonMaster() {
+  const { can, meta, reloadMeta } = useStockAudit();
+  const [tick, setTick] = useState(0);
+  const s = useLoad(() => adapter.seasons(), [tick]);
+  const refresh = () => {
+    setTick(tick + 1);
+    reloadMeta();
+  };
+  return (
+    <Screen title="Season Master" subtitle="One season covers the whole Stock Audit Incentive Programme for its dates: allotments, audits, incentives, headcount, responsible persons, standings and the daily PDFs. Every season starts with fresh points; past seasons are kept.">
       <Loader s={s}>
         {(rows) => (rows.length ? rows.map((x) => (
-          <Section key={x.season_id || x.season_no} title={`Season ${x.season_no} · ${x.name}`} subtitle="Qualification, tie-breakers and prize distribution stay configurable until management confirms them">
-            <SeasonEditor x={x} can={can} onSaved={() => setTick(tick + 1)} />
+          <Section key={x.season_id || x.season_no} title={<Flex align="center" gap={2} wrap="wrap">{x.name}{x.current ? <Badge colorScheme="purple">current</Badge> : null}</Flex>} subtitle={`${fmtDate(x.start)} – ${fmtDate(x.end)} · completion deadline ${fmtDate(x.deadline)}`}>
+            <SeasonEditor key={`${x.season_id}-${tick}`} x={x} can={can} today={meta.today} onSaved={refresh} />
           </Section>
-        )) : <Box p={6} bg="gray.50" borderRadius="md" fontSize="sm">No season yet. A season is one audit period: create it with the button above.</Box>)}
+        )) : <Box p={6} bg="gray.50" borderRadius="md" fontSize="sm">No season yet.{can(ADMIN) ? " Create it below." : " An administrator creates it."}</Box>)}
       </Loader>
+      {can(ADMIN) ? <NewSeason onCreated={refresh} /> : null}
     </Screen>
   );
 }

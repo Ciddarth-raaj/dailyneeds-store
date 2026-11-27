@@ -21,56 +21,34 @@ async function act(fn, ok) {
   }
 }
 
+/**
+ * Screen 12 (administrators): the internal audit cycles behind each season -
+ * one per participating store, created and changed WITH the season (Season
+ * Master). A technical reference only: nothing is created or edited here.
+ */
 export function CycleMaster() {
-  const { can, meta } = useStockAudit();
-  const [tick, setTick] = useState(0);
-  const s = useLoad(() => adapter.cycles(), [tick]);
-  const [form, setForm] = useState({ period_code: "2026-Q4", name: "Q4 2026 Full Audit", start_date: "2026-11-25", deadline: "2026-12-05", end_date: "2026-12-10" });
-  const [stores, setStores] = useState(() => new Set(meta.stores.map((x) => x.outlet_id)));
-  const f = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const s = useLoad(() => adapter.cycles(), []);
   const rows = (d) => (Array.isArray(d) ? d.map((c) => ({ ...c, stores: Array.isArray(c.stores) ? c.stores : (c.cycles || []).map((x) => x.outlet_id) })) : []);
   return (
-    <Screen title="Audit Cycle Master" subtitle="One audit period for all programme stores, with a common deadline. Programme start: 25 Nov 2026, 00:00 IST.">
-      <Section title="Audit periods">
+    <Screen title="Internal Audit Cycles" subtitle="Technical reference for administrators. Each season creates one internal cycle per participating store, with the season's dates; they change only through Season Master.">
+      <Section title="Cycles by season">
         <Loader s={s}>
           {(d) => (
             <DataList
               rows={rows(d)} keyOf={(r) => r.period_code || r.cycle_id}
               columns={[
-                { key: "name", label: "Cycle", primary: true },
-                { key: "period", label: "Period", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.period_code}</Text> },
+                { key: "name", label: "Season", primary: true },
+                { key: "period", label: "Internal code", primary: true, render: (r) => <Text as="span" fontSize="xs" color="gray.500">{r.period_code}</Text> },
                 { key: "status", label: "Status", mobileRight: true, render: (r) => <Pill color="green">{String(r.status || r.statuses || "").toLowerCase()}</Pill> },
                 { key: "start", label: "Start", render: (r) => fmtDate(r.start_date) },
-                { key: "deadline", label: "Audit deadline", render: (r) => fmtDate(r.deadline) },
+                { key: "deadline", label: "Completion deadline", render: (r) => fmtDate(r.deadline) },
                 { key: "end", label: "End", render: (r) => fmtDate(r.end_date) },
-                { key: "stores", label: "Branches", render: (r) => `${r.stores.length} retail stores` },
+                { key: "stores", label: "Store cycles", render: (r) => `${r.stores.length} retail stores` },
               ]}
             />
           )}
         </Loader>
       </Section>
-      {can(P.CYCLES) ? (
-        <Section title="New audit period" subtitle="Creates one cycle for each ticked store. A store cannot have two cycles for one period.">
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
-            <Box><Text fontSize="xs" mb={1}>Name</Text><Input size="sm" h="40px" value={form.name} onChange={f("name")} /></Box>
-            <Box><Text fontSize="xs" mb={1}>Period code</Text><Input size="sm" h="40px" value={form.period_code} onChange={f("period_code")} /></Box>
-            <Box><Text fontSize="xs" mb={1}>Common audit deadline</Text><Input size="sm" h="40px" type="date" value={form.deadline} onChange={f("deadline")} /></Box>
-            <Box><Text fontSize="xs" mb={1}>Start</Text><Input size="sm" h="40px" type="date" value={form.start_date} onChange={f("start_date")} /></Box>
-            <Box><Text fontSize="xs" mb={1}>End</Text><Input size="sm" h="40px" type="date" value={form.end_date} onChange={f("end_date")} /></Box>
-          </SimpleGrid>
-          <Text fontSize="xs" mt={4} mb={1} color="gray.600">Participating branches</Text>
-          <SimpleGrid columns={{ base: 2, md: 6 }} spacing={2}>
-            {meta.stores.map((x) => (
-              <Checkbox key={x.outlet_id} isChecked={stores.has(x.outlet_id)} colorScheme="purple"
-                onChange={(e) => { const n = new Set(stores); if (e.target.checked) n.add(x.outlet_id); else n.delete(x.outlet_id); setStores(n); }}>{x.name}</Checkbox>
-            ))}
-            <Checkbox isDisabled>Warehouse (excluded)</Checkbox>
-          </SimpleGrid>
-          <Flex mt={4} gap={2}>
-            <Button size="sm" minH="38px" colorScheme="purple" onClick={async () => (await act(() => adapter.createCycle({ ...form, outlet_ids: [...stores] }), "Audit period created")) && setTick(tick + 1)}>Create period</Button>
-          </Flex>
-        </Section>
-      ) : null}
     </Screen>
   );
 }
@@ -258,7 +236,7 @@ export function PolicySettings() {
 
 const EXCL_COLOR = { REQUESTED: "orange", APPROVED: "green", REJECTED: "red", WITHDRAWN: "gray" };
 
-/** Screen 32: each store's eligible headcount for the cycle, its snapshot, and exclusions (reason + decision by someone else). */
+/** Screen 32: each store's eligible headcount for the season, its snapshot, and exclusions (reason + decision by someone else). */
 function DesignationEligibility({ d, onSaved }) {
   const { can } = useStockAudit();
   const all = d.eligible_designation_ids === "ALL";
@@ -295,7 +273,7 @@ export function EligibleHeadcount() {
   const [reason, setReason] = useState({});
   const refresh = () => setTick(tick + 1);
   return (
-    <Screen title="Eligible Headcount & Exclusions" subtitle="Participation = eligible staff who counted ÷ ALL eligible active staff of the store. The snapshot freezes the headcount for the cycle; later transfers, resignations and joiners do not change it.">
+    <Screen title="Eligible Headcount & Exclusions" subtitle="Participation = eligible staff who counted ÷ ALL eligible active staff of the store. The snapshot freezes the headcount for the season; later transfers, resignations and joiners do not change it.">
       <Loader s={s}>
         {(d) => (
           <Stack spacing={3}>
@@ -325,7 +303,7 @@ export function EligibleHeadcount() {
                         { key: "counted", label: "Counted", mobileRight: true, render: (r) => (r.participated ? <Badge colorScheme="green">yes</Badge> : <Badge colorScheme="gray">not yet</Badge>) },
                         { key: "x", label: "Exclude (reason required)", render: (r) => can(P.CYCLES) ? (
                           <Flex gap={2} direction={{ base: "column", md: "row" }}>
-                            <Input size="sm" h="38px" placeholder="Reason, e.g. long leave for the whole cycle" value={reason[r.employee_id] || ""} onChange={(e) => setReason({ ...reason, [r.employee_id]: e.target.value })} />
+                            <Input size="sm" h="38px" placeholder="Reason, e.g. long leave for the whole season" value={reason[r.employee_id] || ""} onChange={(e) => setReason({ ...reason, [r.employee_id]: e.target.value })} />
                             <Button size="sm" minH="38px" variant="outline" colorScheme="red" isDisabled={isLive() && (reason[r.employee_id] || "").trim().length < 5} onClick={async () => (await act(() => adapter.requestExclusion(st.outlet_id, r.employee_id, reason[r.employee_id]), "Exclusion requested: another person decides it")) && refresh()}>Request</Button>
                           </Flex>
                         ) : "—" },
@@ -384,13 +362,13 @@ function RoleSlot({ outletId, slot, can, onSaved }) {
   );
 }
 
-/** Screen 33: the responsible Supervisor, Store Manager and Operations Manager per audit period. */
+/** Screen 33: the responsible Supervisor, Store Manager and Operations Manager per season. */
 export function ResponsiblePersons() {
   const { can } = useStockAudit();
   const [tick, setTick] = useState(0);
   const s = useLoad(() => adapter.roles({}), [tick]);
   return (
-    <Screen title="Responsible Persons" subtitle="Candidates come from DNDS designation IDs, the Branch Master store and active status - never from a designation name. One management role per person per audit period, so nobody receives two management incentives.">
+    <Screen title="Responsible Persons" subtitle="Candidates come from DNDS designation IDs, the Branch Master store and active status - never from a designation name. One management role per person per season, so nobody receives two management incentives.">
       <Loader s={s}>
         {(d) => (
           <Stack spacing={3}>

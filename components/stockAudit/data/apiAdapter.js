@@ -1,4 +1,5 @@
 import API from "../../../util/api";
+import { withSeason as addSeason } from "./season";
 
 /**
  * LIVE data: the backend /stock-audit endpoints (dailyneeds-store-backend
@@ -15,12 +16,38 @@ const fail = (err) => {
   const body = err && err.response && err.response.data;
   throw Object.assign(new Error((body && body.msg) || (err && err.message) || "Request failed"), { code: body && body.code });
 };
-const get = (url, params) => API.get(url, { params }).then((res) => unwrap(res.data), fail);
-const send = (method, url, data) => API.request({ method, url, data }).then((res) => unwrap(res.data), fail);
+/**
+ * The SEASON every screen works on (?period=<code>). Kept here, outside React,
+ * because the page remounts the module on every navigation; remembered for
+ * the browser tab. A request that names its own period keeps it.
+ */
+const SEASON_KEY = "stockAudit.season";
+let selected = (() => {
+  try {
+    return (typeof window !== "undefined" && window.sessionStorage.getItem(SEASON_KEY)) || null;
+  } catch (e) {
+    return null;
+  }
+})();
+const withSeason = (params) => addSeason(selected, params);
+const get = (url, params) => API.get(url, { params: withSeason(params) }).then((res) => unwrap(res.data), fail);
+const send = (method, url, data) => API.request({ method, url, data, params: withSeason(undefined) }).then((res) => unwrap(res.data), fail);
 const one = (outlets) => (outlets && outlets.length === 1 ? outlets[0] : undefined);
 
 export const apiAdapter = {
   source: "LIVE",
+  getPeriod: () => selected,
+  setPeriod: (code) => {
+    selected = code || null;
+    try {
+      if (typeof window !== "undefined") {
+        if (selected) window.sessionStorage.setItem(SEASON_KEY, selected);
+        else window.sessionStorage.removeItem(SEASON_KEY);
+      }
+    } catch (e) {
+      // private mode / storage blocked: the choice lasts until the page reloads
+    }
+  },
   meta: () => get("/stock-audit/meta"),
   stores: ({ outlets, period } = {}) => get("/stock-audit/stores", { outlet_id: one(outlets), period }),
   store: ({ outletId, period }) => get(`/stock-audit/stores/${Number(outletId)}`, { period }),
@@ -56,6 +83,5 @@ export const apiAdapter = {
   assignRole: (body) => send("put", "/stock-audit/roles", body),
   settingsView: () => get("/stock-audit/settings"),
   updateSettings: (body) => send("put", "/stock-audit/settings", body),
-  createCycle: (body) => send("post", "/stock-audit/cycles", body),
   hrReport: ({ date, period } = {}) => get("/stock-audit/hr/report", { date, period }),
 };
